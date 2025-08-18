@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.31.2)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_definitions(-DDEBUG_ASSERT_ON -g) # -DDIS_ASM_CHUNK -DDIS_ASM_CHUNK_WHEN_CALL
+add_definitions(-DDEBUG_ASSERT_ON -g)
 
 project(spr C)
 
