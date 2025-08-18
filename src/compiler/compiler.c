@@ -729,9 +729,7 @@ static void id_method_signature(CompileUnit* cu, Signature* sign) {
 
         if (!match_token(cu->parser, TOKEN_LP)) {
             // typping
-            if (match_token(cu->parser, TOKEN_COLON)) {
-                type_annotation(cu);
-            }
+            FUNCTION_RESULT_TYPPING_CHECK();
             return; // 是getter，已正确设置，直接返回
         }
 
@@ -1276,6 +1274,7 @@ static void subscript_method_signature(CompileUnit* cu, Signature* sign) {
     process_para_list(cu, sign);
     consume_cur_token(cu->parser, TOKEN_RB, "expect ']' after index list.");
     try_setter(cu, sign);
+    FUNCTION_RESULT_TYPPING_CHECK();
 }
 
 // '.'.led
