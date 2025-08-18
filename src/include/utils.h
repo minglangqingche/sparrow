@@ -44,12 +44,14 @@ typedef struct {
     void type##BufferFillWrite(VM* vm, type##Buffer* buf, type data, u32 fill_count);\
     void type##BufferAdd(VM* vm, type##Buffer* buf, type data);\
     void type##BufferClear(VM* vm, type##Buffer* buf);\
+    void type##_gc_BufferClear(VM* vm, type##Buffer* buf);
 
 #define BufferType(type) type##Buffer
 #define BufferInit(type, buffer) type##BufferInit(buffer)
 #define BufferFill(type, buffer, vm, data, count) type##BufferFillWrite(vm, buffer, data, count)
 #define BufferAdd(type, buffer, vm, data) type##BufferAdd(vm, buffer, data)
 #define BufferClear(type, buffer, vm) type##BufferClear(vm, buffer)
+#define gc_BufferClear(type, buffer, vm) type##_gc_BufferClear(vm, buffer)
 
 #define DEFINE_BUFFER_METHOD(type) \
     void type##BufferInit(type##Buffer* buf) {\
@@ -76,6 +78,10 @@ typedef struct {
     void type##BufferClear(VM* vm, type##Buffer* buf) {\
         usize old_size = buf->capacity * sizeof(buf->datas[0]);\
         mem_manager(vm, buf->datas, old_size, 0);\
+        type##BufferInit(buf);\
+    }\
+    void type##_gc_BufferClear(VM* vm, type##Buffer* buf) {\
+        mem_manager(vm, buf->datas, 0, 0);\
         type##BufferInit(buf);\
     }
 

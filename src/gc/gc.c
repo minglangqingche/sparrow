@@ -14,10 +14,10 @@
 #include "vm.h"
 #include "parser.h"
 #include <stdlib.h>
-#include <time.h>
 
-#if DEBUG
-    #include "debug.h"
+#ifdef OUTPUT_GC_INFO
+    #include <time.h>
+    #include "disassemble.h"
 #endif
 
 void gray_obj(VM* vm, ObjHeader* obj) {
@@ -159,10 +159,10 @@ static void black_module(VM* vm, ObjModule* module) {
 }
 
 static void black_obj(VM* vm, ObjHeader* obj) {
-#if DEBUG
-    printf("mark ");
-    dump_value(OBJ_TO_VALUE(obj));
-    printf(" @ %p\n", obj);
+#if OUTPUT_GC_INFO
+    printf("~ mark [%u] ", vm->allocated_bytes);
+    u32 _before = vm->allocated_bytes;
+    print_value(&OBJ_TO_VALUE(obj));
 #endif
     switch (obj->type) {
         case OT_CLASS:
@@ -201,6 +201,10 @@ static void black_obj(VM* vm, ObjHeader* obj) {
         default:
             UNREACHABLE();
     }
+
+#ifdef OUTPUT_GC_INFO
+    printf(" [%u, %ld]\n", vm->allocated_bytes, (long)vm->allocated_bytes - (long)_before);
+#endif
 }
 
 static void black_obj_in_gray(VM* vm) {
@@ -211,16 +215,15 @@ static void black_obj_in_gray(VM* vm) {
 }
 
 void free_obj(VM* vm, ObjHeader* header) {
-    // 清除obj中不被gc标记管理的内存
-#ifdef DEBUG
-    printf("free ");
-    dump_value(OBJ_TO_VALUE(header));
-    printf(" @ %p\n", header);
+#ifdef OUTPUT_GC_INFO
+    u32 _before = vm->allocated_bytes;
+    printf("# free [%u] ", _before);
+    print_value(&OBJ_TO_VALUE(header));
 #endif
 
     switch (header->type) {
         case OT_CLASS: {
-            BufferClear(Method, &((Class*)header)->methods, vm);
+            gc_BufferClear(Method, &((Class*)header)->methods, vm);
             break;
         }
         case OT_THREAD: {
@@ -231,17 +234,17 @@ void free_obj(VM* vm, ObjHeader* header) {
         }
         case OT_FUNCTION: {
             ObjFn* fn = (ObjFn*)header;
-            BufferClear(Value, &fn->constants, vm);
-            BufferClear(Byte, &fn->instr_stream, vm);
+            gc_BufferClear(Value, &fn->constants, vm);
+            gc_BufferClear(Byte, &fn->instr_stream, vm);
         #ifdef DEBUG
-            BufferClear(Int, &fn->debug->line);
+            gc_BufferClear(Int, &fn->debug->line);
             DEALLOCATE(vm, fn->debug->fn_name);
             DEALLOCATE(vm, fn->debug);
         #endif
             break;
         }
         case OT_LIST: {
-            BufferClear(Value, &((ObjList*)header)->elements, vm);
+            gc_BufferClear(Value, &((ObjList*)header)->elements, vm);
             break;
         }
         case OT_MAP: {
@@ -249,8 +252,8 @@ void free_obj(VM* vm, ObjHeader* header) {
             break;
         }
         case OT_MODULE:{
-            BufferClear(String, &((ObjModule*)header)->module_var_name, vm);
-            BufferClear(Value, &((ObjModule*)header)->module_var_value, vm);
+            gc_BufferClear(String, &((ObjModule*)header)->module_var_name, vm);
+            gc_BufferClear(Value, &((ObjModule*)header)->module_var_value, vm);
             break;
         }
 
@@ -266,6 +269,10 @@ void free_obj(VM* vm, ObjHeader* header) {
     }
 
     DEALLOCATE(vm, header);
+
+#ifdef OUTPUT_GC_INFO
+    printf(" [%u, %ld]\n", vm->allocated_bytes, (long)vm->allocated_bytes - (long)_before);
+#endif
 }
 
 void gray_compile_unit(VM* vm, CompileUnit* cu) {
@@ -283,10 +290,10 @@ void gray_compile_unit(VM* vm, CompileUnit* cu) {
 }
 
 void start_gc(VM* vm) {
-#ifdef DEBUG
+#ifdef OUTPUT_GC_INFO
     double start_time = (double)clock();
     u32 before = vm->allocated_bytes;
-    printf("-- gc before: %d next_gc: %d vm: %p --\n", before, vm->config.next_gc, vm);
+    printf("-- gc before: %d vm: %p --\n", before, vm);
 #endif
 
     vm->allocated_bytes = 0;
@@ -322,11 +329,11 @@ void start_gc(VM* vm) {
         vm->config.next_gc = vm->config.min_heap_size;
     }
 
-#ifdef DEBUG
-    double elapsed = ((double)clock() - start_time) / CLOCKS_PRE_SEC;
+#ifdef OUTPUT_GC_INFO
+    double elapsed = (double)clock() - start_time;
     printf(
-        "gc before: %lu, after: %lu, collected: %lu, next_gc: %lu, take %.3fs.\n",
-        before, vm->allocated_bytes, (before - vm->allocated_bytes), vm->config.next_gc, elapsed
+        ">> gc after: %u, collected: %ld, next_gc: %u, take %.3fms.\n",
+        vm->allocated_bytes, (long)before - (long)vm->allocated_bytes, vm->config.next_gc, elapsed
     );
 #endif
 }
