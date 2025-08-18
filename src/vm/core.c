@@ -244,6 +244,17 @@ def_prim(Object_to_string) {
     ROBJ(str);
 }
 
+def_prim(Object_debug_str) {
+    ObjString* class_name = VALUE_TO_OBJ(args[1])->class->name;
+    // "<instance of %(self.class.name) at %(self)>"
+    int max_len = 13 + class_name->val.len + 4 + 18 + 1;
+    char* buf = ALLOCATE_ARRAY(vm, char, max_len);
+    sprintf(buf, "<instance of %s at %p>", class_name->val.start, args[1].header);
+    ObjString* str = objstring_new(vm, buf, strlen(buf));
+    DEALLOCATE_ARRAY(vm, buf, max_len);
+    ROBJ(str);
+}
+
 // Object::type(self) -> Class;
 def_prim(Object_type) {
     ROBJ(VALUE_TO_OBJ(args[0])->class);
@@ -1219,6 +1230,14 @@ def_prim(String_add) {
     ObjString* l = VALUE_TO_OBJSTR(args[0]);
     ObjString* r = VALUE_TO_OBJSTR(args[1]);
 
+    if (r->val.len == 0) {
+        ROBJ(l);
+    }
+
+    if (l->val.len == 0) {
+        ROBJ(r);
+    }
+
     u32 total_len = l->val.len + r->val.len;
     
     ObjString* res = ALLOCATE_EXTRA(vm, ObjString, total_len + 1);
@@ -1924,6 +1943,7 @@ void build_core(VM* vm) {
     Class* object_meta_class = define_class(vm, core_module, "Object@Meta");
     bind_super_class(vm, object_meta_class, vm->class_of_class);
     BIND_PRIM_METHOD(object_meta_class, "same(_,_)", prim_name(ObjectMeta_same));
+    BIND_PRIM_METHOD(object_meta_class, "debug_str(_)", prim_name(Object_debug_str));
 
     vm->object_class->header.class = object_meta_class;
     object_meta_class->header.class = vm->class_of_class;

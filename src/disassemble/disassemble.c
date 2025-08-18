@@ -38,17 +38,17 @@ void print_value(Value* val) {
             ObjHeader* obj = val->header;
             switch (obj->type) {
                 case OT_STRING: {
-                    printf("<String '%s'>", ((ObjString*)obj)->val.start);
+                    printf("<String '%s' at %p>", ((ObjString*)obj)->val.start, obj);
                     break;
                 }
 
                 case OT_CLASS: {
-                    printf("<Class %s>", ((Class*)obj)->name->val.start);
+                    printf("<Class %s at %p>", ((Class*)obj)->name->val.start, obj);
                     break;
                 }
 
                 case OT_INSTANCE: {
-                    printf("<Instance of %s>", ((ObjInstance*)obj)->header.class->name->val.start);
+                    printf("<Instance of %s at %p>", ((ObjInstance*)obj)->header.class->name->val.start, obj);
                     break;
                 }
 
