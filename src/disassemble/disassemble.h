@@ -4,5 +4,6 @@
 #include "obj_fn.h"
 
 void dis_asm(VM* vm, ObjModule* module, ObjFn* chunk);
+void print_value(Value* val);
 
 #endif
