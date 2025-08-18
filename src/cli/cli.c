@@ -6,6 +6,8 @@
 #include "vm.h"
 #include "core.h"
 
+// 可选flag：DIS_ASM_CHUNK DIS_ASM_CHUNK_WHEN_CALL OUTPUT_GC_INFO
+
 static void run_file(const char* path) {
     const char* last_slash = strrchr(path, '/');
     if (last_slash != NULL) {
