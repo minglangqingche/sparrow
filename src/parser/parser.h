@@ -27,6 +27,7 @@ typedef enum {
     TOKEN_RETURN,
     TOKEN_NULL,
     TOKEN_IN,
+    TOKEN_NATIVE,
 
     // MODULE
     TOKEN_CLASS,
