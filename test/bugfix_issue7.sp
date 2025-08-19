@@ -16,5 +16,5 @@ let a = 10;
 
 System.print("%(a)");
 System.print("%(TestClass.st_getter)");
-System.print("%(TestClass.st_method())"); // error: expect string at the end of interpolatation.
-System.print("%(foo())"); // expect string at the end of interpolatation.
+System.print("%(TestClass.st_method())");
+System.print("%(foo())");
