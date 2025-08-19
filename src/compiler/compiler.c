@@ -1166,9 +1166,11 @@ static void string_interpolation(CompileUnit* cu, bool can_assign) {
     emit_call(cu, 0, "new()", 5);
 
     do {
-        literal(cu, false); // 解析字符串
-        // List.core_append(_: any) -> List 用于编译器内部构造列表。
-        emit_call(cu, 1, "core_append(_)", 14);
+        if (((ObjString*)cu->parser->pre_token.value.header)->val.len != 0) { // 当其为非空字符串时添加
+            literal(cu, false); // 解析字符串
+            // List.core_append(_: any) -> List 用于编译器内部构造列表。
+            emit_call(cu, 1, "core_append(_)", 14);
+        }
 
         expression(cu, BP_LOWEST); // 解析内嵌表达式
         emit_call(cu, 1, "core_append(_)", 14); // 将内嵌表达式的值加入列表
@@ -1179,8 +1181,11 @@ static void string_interpolation(CompileUnit* cu, bool can_assign) {
         "expect string at the end of interpolatation."
     );
 
-    literal(cu, false); // 结尾的TOKEN_STRING
-    emit_call(cu, 1, "core_append(_)", 14);
+    // 结尾的TOKEN_STRING
+    if (((ObjString*)cu->parser->pre_token.value.header)->val.len != 0) { // 当其为非空字符串时添加
+        literal(cu, false);
+        emit_call(cu, 1, "core_append(_)", 14);
+    }
 
     emit_call(cu, 0, "join()", 6);
 }
