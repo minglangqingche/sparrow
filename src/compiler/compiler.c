@@ -165,6 +165,18 @@ static u32 add_constant(CompileUnit* cu, Value constant) {
         push_tmp_root(cu->parser->vm, constant.header);
     }
 
+    // 避免重复常量重复入表
+    for (u32 i = 0; i < cu->fn->constants.count; i++) {
+        Value val = cu->fn->constants.datas[i];
+        if (value_is_equal(val, constant)) {
+            if (VALUE_IS_OBJ(constant)) {
+                pop_tmp_root(cu->parser->vm);
+            }
+            return i;
+        }
+    }
+
+    // 表中没有相同的常量，入表
     BufferAdd(Value, &cu->fn->constants, cu->parser->vm, constant);
 
     if (VALUE_IS_OBJ(constant)) {
@@ -1166,9 +1178,11 @@ static void string_interpolation(CompileUnit* cu, bool can_assign) {
     emit_call(cu, 0, "new()", 5);
 
     do {
-        literal(cu, false); // 解析字符串
-        // List.core_append(_: any) -> List 用于编译器内部构造列表。
-        emit_call(cu, 1, "core_append(_)", 14);
+        if (((ObjString*)cu->parser->pre_token.value.header)->val.len != 0) { // 当其为非空字符串时添加
+            literal(cu, false); // 解析字符串
+            // List.core_append(_: any) -> List 用于编译器内部构造列表。
+            emit_call(cu, 1, "core_append(_)", 14);
+        }
 
         expression(cu, BP_LOWEST); // 解析内嵌表达式
         emit_call(cu, 1, "core_append(_)", 14); // 将内嵌表达式的值加入列表
@@ -1179,8 +1193,11 @@ static void string_interpolation(CompileUnit* cu, bool can_assign) {
         "expect string at the end of interpolatation."
     );
 
-    literal(cu, false); // 结尾的TOKEN_STRING
-    emit_call(cu, 1, "core_append(_)", 14);
+    // 结尾的TOKEN_STRING
+    if (((ObjString*)cu->parser->pre_token.value.header)->val.len != 0) { // 当其为非空字符串时添加
+        literal(cu, false);
+        emit_call(cu, 1, "core_append(_)", 14);
+    }
 
     emit_call(cu, 0, "join()", 6);
 }
