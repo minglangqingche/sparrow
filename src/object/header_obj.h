@@ -2,6 +2,7 @@
 #define __OBJECT_HEADER_OBJ_H__
 
 #include "utils.h"
+#include "sparrow.h"
 
 typedef enum {
     OT_CLASS,
@@ -37,7 +38,7 @@ typedef enum {
     VT_OBJ,
 } ValueType;
 
-typedef struct {
+typedef struct _Value {
     ValueType type;
     union {
         u8 u8val;
