@@ -25,7 +25,7 @@ bool value_is_equal(Value a, Value b) {
     }
 
     if (a.type == VT_F64) {
-        return a.fval == b.ival;
+        return a.fval == b.fval;
     }
 
     if (a.header == b.header) {
