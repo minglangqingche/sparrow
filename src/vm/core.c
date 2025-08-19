@@ -14,6 +14,7 @@
 #include "obj_fn.h"
 #include "obj_list.h"
 #include "obj_map.h"
+#include "obj_native_pointer.h"
 #include "obj_range.h"
 #include "obj_string.h"
 #include "obj_thread.h"
@@ -1820,9 +1821,14 @@ inline static char* read_module(const char* module_name) {
     return module_code;
 }
 
-static void print_str(const char* str) {
+inline static void print_str(const char* str) {
     printf("%s", str);
     fflush(stdout);
+}
+
+inline static void fprint_str(FILE* fp, const char* str) {
+    fprintf(fp, "%s", str);
+    fflush(fp);
 }
 
 static Value import_module(VM* vm, Value module_name) {
@@ -1860,6 +1866,23 @@ static Value get_module_variable(VM* vm, Value module_name, Value var_name) {
     }
 
     return module->module_var_value.datas[index];
+}
+
+bool validate_np(VM* vm, Value val, ObjString* expected) {
+    if (!VALUE_IS_NATIVE_POINTER(val)) {
+        SET_ERROR_FALSE(vm, "expected NativePointer value.");
+    }
+    
+    if (!native_pointer_check_classifier(VALUE_TO_NATIVE_POINTER(val), expected)) {
+        usize len = 42 + expected->val.len;
+        char* buf = ALLOCATE_ARRAY(vm, char, len + 1);
+        sprintf(buf, "expected NativePointer with classifier '%s'.", expected->val.start);
+        vm->cur_thread->error_obj = OBJ_TO_VALUE(objstring_new(vm, buf, len));
+        DEALLOCATE_ARRAY(vm, buf, len + 1);
+        return false;
+    }
+
+    return true;
 }
 
 def_prim(System_clock) {
@@ -1910,6 +1933,18 @@ def_prim(System_write_string) {
     RVAL(args[1]);
 }
 
+static ObjString* CFILE_ptr_classifier = NULL;
+
+def_prim(System_fwrites) {
+    if (validate_np(vm, args[1], CFILE_ptr_classifier) || !validate_str(vm, args[2])) {
+        return false; // error
+    }
+    ObjString* str = VALUE_TO_OBJSTR(args[2]);
+    ASSERT(str->val.start[str->val.len] == '\0', "string isn't terminated.");
+    fprint_str(VALUE_TO_NATIVE_POINTER(args[1])->ptr, str->val.start);
+    RVAL(args[1]);
+}
+
 def_prim(VM_gc) {
     start_gc(vm);
     RNULL();
@@ -1917,6 +1952,60 @@ def_prim(VM_gc) {
 
 def_prim(VM_allocated_bytes) {
     RI32((int)vm->allocated_bytes);
+}
+
+def_prim(NativePointer_check_classifier) {
+    if (!validate_str(vm, args[1])) {
+        return false; // error
+    }
+    RBOOL(native_pointer_check_classifier(VALUE_TO_NATIVE_POINTER(args[0]), VALUE_TO_STRING(args[1])));
+}
+
+def_prim(NativePointer_is_null) {
+    RBOOL(VALUE_TO_NATIVE_POINTER(args[0])->ptr == NULL);
+}
+
+def_prim(CFILE_stdin) {
+    ROBJ(native_pointer_new(vm, stdin, CFILE_ptr_classifier, NULL));
+}
+
+def_prim(CFILE_stdout) {
+    ROBJ(native_pointer_new(vm, stdout, CFILE_ptr_classifier, NULL));
+}
+
+def_prim(CFILE_stderr) {
+    ROBJ(native_pointer_new(vm, stderr, CFILE_ptr_classifier, NULL));
+}
+
+static void destroy_file(ObjNativePointer* ptr) {
+    if (ptr->ptr != NULL) {
+        fclose(ptr->ptr);
+    }
+}
+
+def_prim(CFILE_fopen) {
+    if (!validate_str(vm, args[1]) || !validate_str(vm, args[2])) {
+        return false; // error
+    }
+    
+    FILE* fp = fopen(VALUE_TO_STRING(args[1])->val.start, VALUE_TO_STRING(args[2])->val.start);
+    if (fp == NULL) {
+        RNULL();
+    }
+
+    ROBJ(native_pointer_new(vm, fp, CFILE_ptr_classifier, destroy_file));
+}
+
+def_prim(CFILE_fclose) {
+    if (!validate_np(vm, args[1], CFILE_ptr_classifier)) {
+        return false; // error
+    }
+    
+    FILE* fp = VALUE_TO_NATIVE_POINTER(args[1])->ptr;
+    fclose(fp);
+    VALUE_TO_NATIVE_POINTER(args[1])->ptr = NULL;
+
+    RVAL(args[1]);
 }
 
 void build_core(VM* vm) {
@@ -2118,6 +2207,21 @@ void build_core(VM* vm) {
     Class* vm_class = VALUE_TO_CLASS(get_core_class_value(core_module, "VM"));
     BIND_PRIM_METHOD(vm_class->header.class, "gc()", prim_name(VM_gc));
     BIND_PRIM_METHOD(vm_class->header.class, "allocated_bytes", prim_name(VM_allocated_bytes));
+
+    vm->native_pointer_class = VALUE_TO_CLASS(get_core_class_value(core_module, "NativePointer"));
+    BIND_PRIM_METHOD(vm->native_pointer_class, "check_classifier(_)", prim_name(NativePointer_check_classifier));
+    BIND_PRIM_METHOD(vm->native_pointer_class, "is_null", prim_name(NativePointer_is_null));
+
+    if (CFILE_ptr_classifier == NULL ) {
+        CFILE_ptr_classifier = objstring_new(vm, "FILE", 4);
+        BufferAdd(Value, &vm->allways_keep_roots, vm, OBJ_TO_VALUE(CFILE_ptr_classifier));
+    }
+    Class* cfile_class = VALUE_TO_CLASS(get_core_class_value(core_module, "CFILE"));
+    BIND_PRIM_METHOD(cfile_class->header.class, "stdin", prim_name(CFILE_stdin));
+    BIND_PRIM_METHOD(cfile_class->header.class, "stdout", prim_name(CFILE_stdout));
+    BIND_PRIM_METHOD(cfile_class->header.class, "stderr", prim_name(CFILE_stderr));
+    BIND_PRIM_METHOD(cfile_class->header.class, "fopen(_,_)", prim_name(CFILE_fopen));
+    BIND_PRIM_METHOD(cfile_class->header.class, "fclose(_)", prim_name(CFILE_fclose));
 
     // 编译core.sp时字符串对象初始化时vm->string->class为NULL，现重新填充
     ObjHeader* header = vm->all_objs;

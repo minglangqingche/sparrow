@@ -15,6 +15,7 @@ typedef enum {
     OT_CLOSURE,
     OT_INSTANCE,
     OT_THREAD,
+    OT_NATIVE_POINTER,
 } ObjType;
 
 typedef struct objHeader {
