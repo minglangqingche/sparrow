@@ -1858,11 +1858,55 @@ static void compile_method(CompileUnit* cu, Variable class, bool is_static) {
     }
 }
 
+inline static void native_annotation(CompileUnit* cu) {
+    match_token(cu->parser, TOKEN_STATIC);
+
+    if (match_token(cu->parser, TOKEN_LB)) {
+        // native [_]; native [_] = (_);
+        do {
+            consume_cur_token(cu->parser, TOKEN_ID, "(native annotation): expect parameter list.");
+            if (match_token(cu->parser, TOKEN_COLON)) {
+                type_annotation(cu);
+            }
+        } while (match_token(cu->parser, TOKEN_COMMA));
+        consume_cur_token(cu->parser, TOKEN_RB, "(native annotation): expect ']';");
+    } else if (Rules[cu->parser->cur_token.type].method_sign != NULL) {
+        // native id(); native id = (_);
+        get_next_token(cu->parser);
+        if (match_token(cu->parser, TOKEN_LP) && !match_token(cu->parser, TOKEN_RP)) {
+            do {
+                consume_cur_token(cu->parser, TOKEN_ID, "(native annotation): expect parameter list.");
+                if (match_token(cu->parser, TOKEN_COLON)) {
+                    type_annotation(cu);
+                }
+            } while (match_token(cu->parser, TOKEN_COMMA));
+            consume_cur_token(cu->parser, TOKEN_RP, "(native annotation): expect ')';");
+        }
+    } else {
+        COMPILE_ERROR(cu->parser, "(native annotation): expect id or [ or -> for native function.");
+    }
+
+    if (match_token(cu->parser, TOKEN_ASSIGN)) {
+        consume_cur_token(cu->parser, TOKEN_LP, "(native annotation): expect '= (id)'.");
+        consume_cur_token(cu->parser, TOKEN_ID, "(native annotation): expect '= (id)'.");
+        if (match_token(cu->parser, TOKEN_COLON)) {
+            type_annotation(cu);
+        }
+        consume_cur_token(cu->parser, TOKEN_RP, "(native annotation): expect '= (id)'.");
+    }
+
+    FUNCTION_RESULT_TYPPING_CHECK();
+
+    consume_cur_token(cu->parser, TOKEN_SEMICOLON, "(native annotation): expect ';'.");
+}
+
 inline static void compile_class_body(CompileUnit* cu, Variable class) {
     bool is_static = match_token(cu->parser, TOKEN_STATIC);
 
     if (match_token(cu->parser, TOKEN_LET)) {
         compile_var_definition(cu, is_static);
+    } else if (match_token(cu->parser, TOKEN_NATIVE)) {
+        native_annotation(cu);
     } else {
         compile_method(cu, class, is_static);
     }
