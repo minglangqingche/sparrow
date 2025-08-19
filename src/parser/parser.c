@@ -212,7 +212,7 @@ static void parse_string(Parser* parser) {
 }
 
 // 跳过一行
-static void skip_aline(Parser* parser) {
+inline static void skip_aline(Parser* parser) {
     get_next_char(parser);
     while (parser->cur_char != '\0') {
         if (parser->cur_char == '\n') {
@@ -224,7 +224,7 @@ static void skip_aline(Parser* parser) {
     }
 }
 
-static void skip_comment(Parser* parser) {
+inline static void skip_comment(Parser* parser) {
     // 单行注释
     if (parser->cur_char == '/') {
         skip_aline(parser);
@@ -232,26 +232,27 @@ static void skip_comment(Parser* parser) {
         return;
     }
 
-    char next_char = look_ahead_char(parser);
-    while (next_char != '*' && next_char != '\0') {
+    // cur_char == '*' 块注释
+    get_next_char(parser); // skip '*'
+    char next_char = '\0';
+    while (parser->cur_char != '\0') {
+        if (parser->cur_char == '*' && (next_char = look_ahead_char(parser)) == '/') {
+            break;
+        }
+
         get_next_char(parser);
         
         if (parser->cur_char == '\n') {
             parser->cur_token.line++;
         }
-
-        next_char = look_ahead_char(parser);
     }
 
-    if (next_char == '\0') {
+    if (parser->cur_char == '\0') {
         LEX_ERROR(parser, "expect '*/' before EOF.");
     }
-
-    if (!match_next_char(parser, '*') || !match_next_char(parser, '/')) {
-        LEX_ERROR(parser, "expect '/' after '*'.");
-    }
-
-    get_next_char(parser);
+    
+    get_next_char(parser); // skip '/'
+    get_next_char(parser); // 指向下一个字符
     skip_blanks(parser);
 }
 
