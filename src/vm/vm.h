@@ -41,6 +41,7 @@ struct _VM {
     ObjThread* cur_thread;
     Parser* cur_parser;
 
+    BufferType(Value) allways_keep_roots; // 长久持有的对象根，从添加开始直到vm_free才自动释放
     ObjHeader* tmp_roots[MAX_TEMP_ROOTS_NUM];
     u32 tmp_roots_num;
     Gray grays;
@@ -58,6 +59,7 @@ struct _VM {
     Class* i32_class;
     Class* f64_class;
     Class* thread_class;
+    Class* native_pointer_class;
 };
 
 void vm_init(VM* vm);

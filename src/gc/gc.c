@@ -7,6 +7,7 @@
 #include "obj_fn.h"
 #include "obj_list.h"
 #include "obj_map.h"
+#include "obj_native_pointer.h"
 #include "obj_range.h"
 #include "obj_string.h"
 #include "obj_thread.h"
@@ -146,7 +147,7 @@ static void black_upvalue(VM* vm, ObjUpvalue* upvalue) {
     vm->allocated_bytes += sizeof(ObjUpvalue);
 }
 
-static void black_module(VM* vm, ObjModule* module) {
+inline static void black_module(VM* vm, ObjModule* module) {
     for (int i = 0; i < module->module_var_value.count; i++) {
         gray_value(vm, module->module_var_value.datas[i]);
     }
@@ -156,6 +157,10 @@ static void black_module(VM* vm, ObjModule* module) {
     vm->allocated_bytes += sizeof(ObjModule);
     vm->allocated_bytes += sizeof(String) * module->module_var_name.capacity;
     vm->allocated_bytes += sizeof(Value) * module->module_var_value.capacity;
+}
+
+inline static void black_native_pointer(VM* vm, ObjNativePointer* np) {
+    gray_obj(vm, (ObjHeader*)np->classifier);
 }
 
 static void black_obj(VM* vm, ObjHeader* obj) {
@@ -197,6 +202,9 @@ static void black_obj(VM* vm, ObjHeader* obj) {
             break;
         case OT_STRING:
             black_string(vm, (ObjString*)obj);
+            break;
+        case OT_NATIVE_POINTER:
+            black_native_pointer(vm, (ObjNativePointer*)obj);
             break;
         default:
             UNREACHABLE();
@@ -257,6 +265,13 @@ void free_obj(VM* vm, ObjHeader* header) {
             break;
         }
 
+        case OT_NATIVE_POINTER: {
+            ObjNativePointer* np = (ObjNativePointer*)header;
+            if (np->destroy != NULL) {
+                np->destroy(np);
+            }
+        }
+
         case OT_STRING:
         case OT_RANGE:
         case OT_UPVALUE:
@@ -309,6 +324,8 @@ void start_gc(VM* vm) {
         ASSERT(vm->cur_parser->cur_compile_unit != NULL, "gray CompileUnit only be called while compiling.");
         gray_compile_unit(vm, vm->cur_parser->cur_compile_unit);
     }
+
+    gray_buffer(vm, &vm->allways_keep_roots);
 
     black_obj_in_gray(vm);
 

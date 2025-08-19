@@ -3,6 +3,7 @@
 #include <string.h>
 #include "compiler.h"
 #include "header_obj.h"
+#include "obj_native_pointer.h"
 #include "obj_range.h"
 #include "core.h"
 #include "obj_string.h"
@@ -46,6 +47,10 @@ bool value_is_equal(Value a, Value b) {
         ObjRange* ra = VALUE_TO_RANGE(a);
         ObjRange* rb = VALUE_TO_RANGE(b);
         return (ra->from == rb->from) && (ra->to == rb->to) && (ra->step == rb->step);
+    }
+
+    if (a.header->type == OT_NATIVE_POINTER) {
+        return native_pointer_is_eq((ObjNativePointer*)a.header, (ObjNativePointer*)b.header);
     }
 
     return false;

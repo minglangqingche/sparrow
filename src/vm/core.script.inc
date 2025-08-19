@@ -5,6 +5,7 @@ static const char* core_module_code =
 "class f64 {}\n"
 "class Fn {}\n"
 "class Thread {}\n"
+"class NativePointer {}\n"
 "\n"
 "class Sequence {\n"
 "    all (func) {\n"
@@ -378,4 +379,6 @@ static const char* core_module_code =
 "    }\n"
 "}\n"
 "\n"
-"class VM {}\n";
+"class VM {}\n"
+"\n"
+"class CFILE {}\n";

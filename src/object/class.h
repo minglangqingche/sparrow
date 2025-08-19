@@ -35,6 +35,7 @@ typedef enum {
 #define VALUE_TO_THREAD(v)      ((ObjThread*)VALUE_TO_OBJ(v))
 #define VALUE_TO_LIST(v)        ((ObjList*)VALUE_TO_OBJ(v))
 #define VALUE_TO_OBJMAP(v)      ((ObjMap*)VALUE_TO_OBJ(v))
+#define VALUE_TO_NATIVE_POINTER(v) ((ObjNativePointer*)VALUE_TO_OBJ(v))
 
 #define VALUE_IS_UNDEFINED(v)   (v.type == VT_UNDEFINED)
 #define VALUE_IS_FALSE(v)       (v.type == VT_FALSE)
@@ -49,8 +50,9 @@ typedef enum {
 #define VALUE_IS_STRING(v)      (v.type == VT_OBJ && VALUE_TO_OBJ(v)->type == OT_STRING)
 #define VALUE_IS_CLOSURE(v)     (v.type == VT_OBJ && VALUE_TO_OBJ(v)->type == OT_CLOSURE)
 #define VALUE_IS_RANGE(v)       (v.type == VT_OBJ && VALUE_TO_OBJ(v)->type == OT_RANGE)
+#define VALUE_IS_NATIVE_POINTER(v) (v.type == VT_OBJ && VALUE_TO_OBJ(v)->type == OT_NATIVE_POINTER)
 
-#define CLASS_IS_BUILTIN(vm, c) (c == vm->string_class || c == vm->fn_class || c == vm->list_class || c == vm->range_class || c == vm->map_class || c == vm->null_class || c == vm->bool_class || c == vm->i32_class || c == vm->f64_class || c == vm->thread_class)
+#define CLASS_IS_BUILTIN(vm, c) (c == vm->string_class || c == vm->fn_class || c == vm->list_class || c == vm->range_class || c == vm->map_class || c == vm->null_class || c == vm->bool_class || c == vm->i32_class || c == vm->f64_class || c == vm->thread_class || c == vm->native_pointer_class)
 
 typedef bool (*Primitive)(VM* vm, Value* args);
 
