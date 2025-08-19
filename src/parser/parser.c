@@ -340,7 +340,12 @@ void get_next_token(Parser* parser) {
             CASE(';', SEMICOLON)
             CASE('[', LB) CASE(']', RB)
             CASE('{', LC) CASE('}', RC)
-            CASE('(', LP)
+            case '(':
+                if (parser->interpolation_rp_trace > 0) {
+                    parser->interpolation_rp_trace++;
+                }
+                parser->cur_token.type = TOKEN_LP;
+                break;
             case ')':
                 if (parser->interpolation_rp_trace > 0) {
                     parser->interpolation_rp_trace--;

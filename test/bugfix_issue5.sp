@@ -1,5 +1,5 @@
 class TestClass {
-    static st_getter -> String {            // expect '{' at the beginning of method body.
+    static st_getter -> String {
         return "this is static getter method.";
     }
 
@@ -11,7 +11,7 @@ class TestClass {
 
     new () {}
 
-    getter -> String {                      // expect '{' at the beginning of method body.
+    getter -> String {
         return "this is getter method.";
     }
 
@@ -23,7 +23,7 @@ class TestClass {
         return "this is method.";
     }
 
-    [_: Any] -> String {                    // expect '{' at the beginning of method body.
+    [_: Any] -> String {
         return "this is subscript method.";
     }
 
