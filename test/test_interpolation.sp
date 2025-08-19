@@ -39,3 +39,10 @@ System.print("prefix %(a) tial");
 System.print("prefix %(TestClass.st_getter) tial");
 System.print("prefix %(TestClass.st_method()) tial");
 System.print("prefix %(foo()) tial");
+
+// 内嵌表达式为字面量
+System.print("prefix %(10) tial");
+System.print("prefix %(9.9)");
+System.print("%(true) tial");
+System.print("%(null)");
+
