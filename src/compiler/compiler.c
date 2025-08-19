@@ -165,6 +165,18 @@ static u32 add_constant(CompileUnit* cu, Value constant) {
         push_tmp_root(cu->parser->vm, constant.header);
     }
 
+    // 避免重复常量重复入表
+    for (u32 i = 0; i < cu->fn->constants.count; i++) {
+        Value val = cu->fn->constants.datas[i];
+        if (value_is_equal(val, constant)) {
+            if (VALUE_IS_OBJ(constant)) {
+                pop_tmp_root(cu->parser->vm);
+            }
+            return i;
+        }
+    }
+
+    // 表中没有相同的常量，入表
     BufferAdd(Value, &cu->fn->constants, cu->parser->vm, constant);
 
     if (VALUE_IS_OBJ(constant)) {
