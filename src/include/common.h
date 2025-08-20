@@ -20,9 +20,11 @@ typedef struct _VM VM;
 typedef struct _Parser Parser;
 typedef struct _Class Class;
 
-#define bool char
-#define true 1
-#define false 0
+#ifndef __STDBOOL_H
+    #define bool char
+    #define true 1
+    #define false 0
+#endif
 
 #define UNUSED __attribute__ ((unused))
 
