@@ -22,11 +22,11 @@ bool value_is_equal(Value a, Value b) {
     }
 
     if (a.type == VT_I32) {
-        return a.ival == b.ival;
+        return a.i32val == b.i32val;
     }
 
     if (a.type == VT_F64) {
-        return a.fval == b.fval;
+        return a.f64val == b.f64val;
     }
 
     if (a.header == b.header) {
@@ -73,6 +73,8 @@ Class* class_new_raw(VM* vm, const char* name, u32 field_num) {
 
 inline Class* get_class_of_object(VM* vm, Value object) {
     switch (object.type) {
+        case VT_U32:
+            return vm->u32_class;
         case VT_I32:
             return vm->i32_class;
         case VT_F64:

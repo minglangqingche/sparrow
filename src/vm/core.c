@@ -39,6 +39,7 @@ char* root_dir = NULL;
 #define ROBJ(obj) RVAL(OBJ_TO_VALUE(obj))
 #define RBOOL(boolean) RVAL(BOOL_TO_VALUE(boolean))
 #define RI32(i) RVAL(I32_TO_VALUE(i))
+#define RU32(u) RVAL(U32_TO_VALUE(u))
 #define RF64(f) RVAL(F64_TO_VALUE(f))
 #define RNULL() RVAL(VT_TO_VALUE(VT_NULL))
 #define RTRUE() RVAL(VT_TO_VALUE(VT_TRUE))
@@ -481,25 +482,34 @@ inline static ObjString* f64_2str(VM* vm, double num) {
         return objstring_new(vm, "-inf", 4);
     }
 
-    char buf[24] = {'\0'};
-    int len = snprintf(buf, 24, "%lf", num);
+    char buf[64] = {'\0'};
+    int len = snprintf(buf, 64, "%lf", num);
     return objstring_new(vm, buf, len);
 }
 
 inline static ObjString* i32_2str(VM* vm, int num) {
     char buf[24] = {'\0'};
-    int len = sprintf(buf, "%d", num);
+    int len = snprintf(buf, 24, "%d", num);
+    return objstring_new(vm, buf, len);
+}
+
+inline static ObjString* u32_2str(VM* vm, int num) {
+    char buf[24] = {'\0'};
+    int len = snprintf(buf, 24, "%u", num);
     return objstring_new(vm, buf, len);
 }
 
 inline static int validate_num(VM* vm, Value arg) {
-    if (VALUE_IS_F64(arg)) {
-        return 2;
+    switch (arg.type) {
+        case VT_I32:
+            return 1;
+        case VT_F64:
+            return 2;
+        case VT_U32:
+            return 3;
+        default:
+            SET_ERROR_FALSE(vm, "argument must be number.");
     }
-    if (VALUE_IS_I32(arg)) {
-        return 1;
-    }
-    SET_ERROR_FALSE(vm, "argument must be number.");
 }
 
 inline static bool validate_str(VM* vm, Value arg) {
@@ -587,9 +597,76 @@ def_prim(Math_pi) {
 def_prim(i32_add) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RI32(args[0].ival + args[1].ival);
+            RI32(args[0].i32val + args[1].i32val);
         case 2:
-            RF64((double)(args[0].ival) + args[1].fval);
+            RF64((double)(args[0].i32val) + args[1].f64val);
+        case 3:
+            RI32(args[0].i32val + (i32)args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
+def_prim(u32_add) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RU32(args[0].u32val + (u32)args[1].i32val);
+        case 2:
+            RF64((double)(args[0].u32val) + args[1].f64val);
+        case 3:
+            RU32(args[0].u32val + args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
+def_prim(u32_sub) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RU32(args[0].u32val - (u32)args[1].i32val);
+        case 2:
+            RF64((double)(args[0].u32val) - args[1].f64val);
+        case 3:
+            RU32(args[0].u32val - args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
+def_prim(u32_mul) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RU32(args[0].u32val * (u32)args[1].i32val);
+        case 2:
+            RF64((double)(args[0].u32val) * args[1].f64val);
+        case 3:
+            RU32(args[0].u32val * args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
+def_prim(u32_div) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RU32(args[0].u32val / (u32)args[1].i32val);
+        case 2:
+            RF64((double)(args[0].u32val) / args[1].f64val);
+        case 3:
+            RU32(args[0].u32val / args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
+def_prim(u32_mod) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RU32(args[0].u32val % (u32)args[1].i32val);
+        case 2:
+            RF64(fmod((double)(args[0].u32val), args[1].f64val));
+        case 3:
+            RU32(args[0].u32val % args[1].u32val);
         default:
             return false; // 报错
     }
@@ -598,9 +675,11 @@ def_prim(i32_add) {
 def_prim(i32_sub) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RI32(args[0].ival - args[1].ival);
+            RU32(args[0].i32val - args[1].i32val);
         case 2:
-            RF64((double)(args[0].ival) - args[1].fval);
+            RF64((double)(args[0].i32val) - args[1].f64val);
+        case 3:
+            RU32(args[0].i32val - (i32)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -609,9 +688,11 @@ def_prim(i32_sub) {
 def_prim(i32_mul) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RI32(args[0].ival * args[1].ival);
+            RU32(args[0].i32val * args[1].i32val);
         case 2:
-            RF64((double)(args[0].ival) * args[1].fval);
+            RF64((double)(args[0].i32val) * args[1].f64val);
+        case 3:
+            RU32(args[0].i32val * (i32)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -620,9 +701,11 @@ def_prim(i32_mul) {
 def_prim(i32_div) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RI32(args[0].ival / args[1].ival);
+            RU32(args[0].i32val / args[1].i32val);
         case 2:
-            RF64((double)(args[0].ival) / args[1].fval);
+            RF64((double)(args[0].i32val) / args[1].f64val);
+        case 3:
+            RU32(args[0].i32val / (i32)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -631,9 +714,63 @@ def_prim(i32_div) {
 def_prim(i32_mod) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RI32(args[0].ival % args[1].ival);
+            RU32(args[0].i32val % args[1].i32val);
         case 2:
-            RF64(fmod((double)(args[0].ival), args[1].fval));
+            RF64(fmod((double)(args[0].i32val), args[1].f64val));
+        case 3:
+            RU32(args[0].i32val % (i32)args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
+def_prim(u32_gt) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RBOOL(args[0].u32val > args[1].i32val);
+        case 2:
+            RBOOL((double)(args[0].u32val) > args[1].f64val);
+        case 3:
+            RBOOL(args[0].u32val > (i32)args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
+def_prim(u32_ge) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RBOOL(args[0].u32val >= args[1].i32val);
+        case 2:
+            RBOOL((double)(args[0].u32val) >= args[1].f64val);
+        case 3:
+            RBOOL(args[0].u32val >= (i32)args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
+def_prim(u32_lt) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RBOOL(args[0].u32val < args[1].i32val);
+        case 2:
+            RBOOL((double)(args[0].u32val) < args[1].f64val);
+        case 3:
+            RBOOL(args[0].u32val < (i32)args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
+def_prim(u32_le) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RBOOL(args[0].u32val <= args[1].i32val);
+        case 2:
+            RBOOL((double)(args[0].u32val) <= args[1].f64val);
+        case 3:
+            RBOOL(args[0].u32val <= (i32)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -642,9 +779,11 @@ def_prim(i32_mod) {
 def_prim(i32_gt) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RBOOL(args[0].ival > args[1].ival);
+            RBOOL(args[0].i32val > args[1].i32val);
         case 2:
-            RBOOL((double)(args[0].ival) > args[1].fval);
+            RBOOL((double)(args[0].i32val) > args[1].f64val);
+        case 3:
+            RBOOL(args[0].i32val > (i32)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -653,9 +792,11 @@ def_prim(i32_gt) {
 def_prim(i32_ge) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RBOOL(args[0].ival >= args[1].ival);
+            RBOOL(args[0].i32val >= args[1].i32val);
         case 2:
-            RBOOL((double)(args[0].ival) >= args[1].fval);
+            RBOOL((double)(args[0].i32val) >= args[1].f64val);
+        case 3:
+            RBOOL(args[0].i32val >= (i32)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -664,9 +805,11 @@ def_prim(i32_ge) {
 def_prim(i32_lt) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RBOOL(args[0].ival < args[1].ival);
+            RBOOL(args[0].i32val < args[1].i32val);
         case 2:
-            RBOOL((double)(args[0].ival) < args[1].fval);
+            RBOOL((double)(args[0].i32val) < args[1].f64val);
+        case 3:
+            RBOOL(args[0].i32val < (i32)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -675,9 +818,37 @@ def_prim(i32_lt) {
 def_prim(i32_le) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RBOOL(args[0].ival <= args[1].ival);
+            RBOOL(args[0].i32val <= args[1].i32val);
         case 2:
-            RBOOL((double)(args[0].ival) <= args[1].fval);
+            RBOOL((double)(args[0].i32val) <= args[1].f64val);
+        case 3:
+            RBOOL(args[0].i32val <= (i32)args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
+def_prim(u32_bit_and) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RU32(args[0].u32val & (u32)args[1].i32val);
+        case 2:
+            RU32(args[0].u32val & (u32)(args[1].f64val));
+        case 3:
+            RU32(args[0].u32val & args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
+def_prim(u32_bit_or) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RU32(args[0].u32val | (u32)args[1].i32val);
+        case 2:
+            RU32(args[0].u32val | (u32)(args[1].f64val));
+        case 3:
+            RU32(args[0].u32val | args[1].u32val);
         default:
             return false; // 报错
     }
@@ -686,9 +857,37 @@ def_prim(i32_le) {
 def_prim(i32_bit_and) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RI32(args[0].ival & args[1].ival);
+            RI32(args[0].i32val & args[1].i32val);
         case 2:
-            RI32(args[0].ival & (int)(args[1].fval));
+            RI32(args[0].i32val & (int)(args[1].f64val));
+        case 3:
+            RI32(args[0].i32val & (i32)args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
+def_prim(u32_bit_ls) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RU32(args[0].u32val << (u32)args[1].i32val);
+        case 2:
+            RU32(args[0].u32val << (u32)(args[1].f64val));
+        case 3:
+            RU32(args[0].u32val << args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
+def_prim(u32_bit_rs) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RU32(args[0].u32val >> (u32)args[1].i32val);
+        case 2:
+            RU32(args[0].u32val >> (u32)(args[1].f64val));
+        case 3:
+            RU32(args[0].u32val >> args[1].u32val);
         default:
             return false; // 报错
     }
@@ -697,9 +896,11 @@ def_prim(i32_bit_and) {
 def_prim(i32_bit_or) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RI32(args[0].ival | args[1].ival);
+            RI32(args[0].i32val | args[1].i32val);
         case 2:
-            RI32(args[0].ival | (int)(args[1].fval));
+            RI32(args[0].i32val | (int)(args[1].f64val));
+        case 3:
+            RI32(args[0].i32val | (i32)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -708,9 +909,11 @@ def_prim(i32_bit_or) {
 def_prim(i32_bit_ls) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RI32(args[0].ival << args[1].ival);
+            RI32(args[0].i32val << args[1].i32val);
         case 2:
-            RI32(args[0].ival << (u32)(args[1].fval));
+            RI32(args[0].i32val << (u32)(args[1].f64val));
+        case 3:
+            RI32(args[0].i32val << (i32)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -719,9 +922,11 @@ def_prim(i32_bit_ls) {
 def_prim(i32_bit_rs) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RI32(args[0].ival >> args[1].ival);
+            RI32(args[0].i32val >> args[1].i32val);
         case 2:
-            RI32(args[0].ival >> (u32)(args[1].fval));
+            RI32(args[0].i32val >> (u32)(args[1].f64val));
+        case 3:
+            RI32(args[0].i32val >> (i32)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -730,9 +935,11 @@ def_prim(i32_bit_rs) {
 def_prim(f64_add) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64(args[0].fval + (double)(args[1].ival));
+            RF64(args[0].f64val + (double)(args[1].i32val));
         case 2:
-            RF64(args[0].fval + args[1].fval);
+            RF64(args[0].f64val + args[1].f64val);
+        case 3:
+            RF64(args[0].f64val + (f64)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -741,9 +948,11 @@ def_prim(f64_add) {
 def_prim(f64_sub) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64(args[0].fval - (double)(args[1].ival));
+            RF64(args[0].f64val - (double)(args[1].i32val));
         case 2:
-            RF64(args[0].fval - args[1].fval);
+            RF64(args[0].f64val - args[1].f64val);
+        case 3:
+            RF64(args[0].f64val - (f64)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -752,9 +961,11 @@ def_prim(f64_sub) {
 def_prim(f64_mul) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64(args[0].fval * (double)(args[1].ival));
+            RF64(args[0].f64val * (double)(args[1].i32val));
         case 2:
-            RF64(args[0].fval * args[1].fval);
+            RF64(args[0].f64val * args[1].f64val);
+        case 3:
+            RF64(args[0].f64val * (f64)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -763,9 +974,11 @@ def_prim(f64_mul) {
 def_prim(f64_div) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64(args[0].fval / (double)(args[1].ival));
+            RF64(args[0].f64val / (double)(args[1].i32val));
         case 2:
-            RF64(args[0].fval / args[1].fval);
+            RF64(args[0].f64val / args[1].f64val);
+        case 3:
+            RF64(args[0].f64val / (f64)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -774,9 +987,11 @@ def_prim(f64_div) {
 def_prim(f64_mod) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64(fmod(args[0].fval, (double)(args[1].ival)));
+            RF64(fmod(args[0].f64val, (double)(args[1].i32val)));
         case 2:
-            RF64(fmod(args[0].fval, args[1].fval));
+            RF64(fmod(args[0].f64val, args[1].f64val));
+        case 3:
+            RF64(fmod(args[0].f64val, (f64)args[1].u32val));
         default:
             return false; // 报错
     }
@@ -785,9 +1000,11 @@ def_prim(f64_mod) {
 def_prim(f64_gt) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RBOOL(args[0].fval > (double)(args[1].ival));
+            RBOOL(args[0].f64val > (double)(args[1].i32val));
         case 2:
-            RBOOL(args[0].fval > args[1].fval);
+            RBOOL(args[0].f64val > args[1].f64val);
+        case 3:
+            RBOOL(args[0].f64val > (f64)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -796,9 +1013,11 @@ def_prim(f64_gt) {
 def_prim(f64_ge) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RBOOL(args[0].fval >= (double)(args[1].ival));
+            RBOOL(args[0].f64val >= (double)(args[1].i32val));
         case 2:
-            RBOOL(args[0].fval >= args[1].fval);
+            RBOOL(args[0].f64val >= args[1].f64val);
+        case 3:
+            RBOOL(args[0].f64val >= (f64)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -807,9 +1026,11 @@ def_prim(f64_ge) {
 def_prim(f64_lt) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RBOOL(args[0].fval < (double)(args[1].ival));
+            RBOOL(args[0].f64val < (double)(args[1].i32val));
         case 2:
-            RBOOL(args[0].fval < args[1].fval);
+            RBOOL(args[0].f64val < args[1].f64val);
+        case 3:
+            RBOOL(args[0].f64val < (f64)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -818,9 +1039,11 @@ def_prim(f64_lt) {
 def_prim(f64_le) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RBOOL(args[0].fval <= (double)(args[1].ival));
+            RBOOL(args[0].f64val <= (double)(args[1].i32val));
         case 2:
-            RBOOL(args[0].fval <= args[1].fval);
+            RBOOL(args[0].f64val <= args[1].f64val);
+        case 3:
+            RBOOL(args[0].f64val <= (f64)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -829,9 +1052,11 @@ def_prim(f64_le) {
 def_prim(Math_abs) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RI32(abs(args[1].ival));
+            RI32(abs(args[1].i32val));
         case 2:
-            RF64(fabs(args[1].fval));
+            RF64(fabs(args[1].f64val));
+        case 3:
+            RVAL(args[1]);
         default:
             return false; // 报错
     }
@@ -840,9 +1065,11 @@ def_prim(Math_abs) {
 def_prim(Math_acos) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64(acos((double)(args[1].ival)));
+            RF64(acos((double)(args[1].i32val)));
         case 2:
-            RF64(acos(args[1].fval));
+            RF64(acos(args[1].f64val));
+        case 3:
+            RF64(acos((double)(args[1].u32val)));
         default:
             return false; // 报错
     }
@@ -851,9 +1078,11 @@ def_prim(Math_acos) {
 def_prim(Math_asin) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64(asin((double)(args[1].ival)));
+            RF64(asin((double)(args[1].i32val)));
         case 2:
-            RF64(asin(args[1].fval));
+            RF64(asin(args[1].f64val));
+        case 3:
+            RF64(asin((double)(args[1].u32val)));
         default:
             return false; // 报错
     }
@@ -862,9 +1091,11 @@ def_prim(Math_asin) {
 def_prim(Math_atan) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64(atan((double)(args[1].ival)));
+            RF64(atan((double)(args[1].i32val)));
         case 2:
-            RF64(atan(args[1].fval));
+            RF64(atan(args[1].f64val));
+        case 3:
+            RF64(atan((double)(args[1].u32val)));
         default:
             return false; // 报错
     }
@@ -873,9 +1104,11 @@ def_prim(Math_atan) {
 def_prim(Math_ceil) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64((double)(args[1].ival));
+            RF64((double)(args[1].i32val));
         case 2:
-            RF64(ceil(args[1].fval));
+            RF64(ceil(args[1].f64val));
+        case 3:
+            RF64((double)(args[1].u32val));
         default:
             return false; // 报错
     }
@@ -884,28 +1117,36 @@ def_prim(Math_ceil) {
 def_prim(Math_floor) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64((double)(args[1].ival));
+            RF64((double)(args[1].i32val));
         case 2:
-            RF64(floor(args[1].fval));
+            RF64(floor(args[1].f64val));
+        case 3:
+            RF64((double)(args[1].u32val));
         default:
             return false; // 报错
     }
 }
 
 def_prim(i32_neg) {
-    RI32(-args[0].ival);
+    RI32(-args[0].i32val);
+}
+
+def_prim(u32_neg) {
+    RI32(-args[0].u32val);
 }
 
 def_prim(f64_neg) {
-    RF64(-args[0].fval);
+    RF64(-args[0].f64val);
 }
 
 def_prim(Math_cos) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64(cos((double)(args[1].ival)));
+            RF64(cos((double)(args[1].i32val)));
         case 2:
-            RF64(cos(args[1].fval));
+            RF64(cos(args[1].f64val));
+        case 3:
+            RF64(cos((f64)(args[1].u32val)));
         default:
             return false; // 报错
     }
@@ -914,9 +1155,11 @@ def_prim(Math_cos) {
 def_prim(Math_sin) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64(sin((double)(args[1].ival)));
+            RF64(sin((double)(args[1].i32val)));
         case 2:
-            RF64(sin(args[1].fval));
+            RF64(sin(args[1].f64val));
+        case 3:
+            RF64(sin((f64)(args[1].u32val)));
         default:
             return false; // 报错
     }
@@ -925,9 +1168,11 @@ def_prim(Math_sin) {
 def_prim(Math_tan) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64(tan((double)(args[1].ival)));
+            RF64(tan((double)(args[1].i32val)));
         case 2:
-            RF64(tan(args[1].fval));
+            RF64(tan(args[1].f64val));
+        case 3:
+            RF64(tan((f64)(args[1].u32val)));
         default:
             return false; // 报错
     }
@@ -936,23 +1181,29 @@ def_prim(Math_tan) {
 def_prim(Math_sqrt) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64(sqrt((double)(args[1].ival)));
+            RF64(sqrt((double)(args[1].i32val)));
         case 2:
-            RF64(sqrt(args[1].fval));
+            RF64(sqrt(args[1].f64val));
+        case 3:
+            RF64(sqrt((f64)(args[1].u32val)));
         default:
             return false; // 报错
     }
 }
 
 def_prim(i32_bit_not) {
-    RI32(~(u32)args[0].ival);
+    RU32(~(u32)args[0].i32val);
+}
+
+def_prim(u32_bit_not) {
+    RU32(~args[0].u32val);
 }
 
 def_prim(i32_range) {
     if (!VALUE_IS_I32(args[1])) {
         SET_ERROR_FALSE(vm, "expect i32 value for i32.range(to: i32) -> Range;");
     }
-    ROBJ(objrange_new(vm, args[0].ival, args[1].ival, 1));
+    ROBJ(objrange_new(vm, args[0].i32val, args[1].i32val, 1));
 }
 
 def_prim(Math_atan2) {
@@ -961,18 +1212,22 @@ def_prim(Math_atan2) {
     
     switch (validate_num(vm, args[1])) {
         case 1:
-            p1 = args[1].ival;
+            p1 = args[1].i32val;
         case 2:
-            p2 = args[1].fval;
+            p1 = args[1].f64val;
+        case 3:
+            p1 = args[1].u32val;
         default:
             return false; // 报错
     }
 
     switch (validate_num(vm, args[2])) {
         case 1:
-            p1 = args[2].ival;
+            p1 = args[2].i32val;
         case 2:
-            p2 = args[2].fval;
+            p1 = args[2].f64val;
+        case 3:
+            p2 = args[2].u32val;
         default:
             return false; // 报错
     }
@@ -982,11 +1237,12 @@ def_prim(Math_atan2) {
 
 def_prim(Math_fraction) {
     switch (validate_num(vm, args[1])) {
+        case 3:
         case 1:
             RF64(0.0);
         case 2: {
             double dummy;
-            RF64(modf(args[1].fval, &dummy));
+            RF64(modf(args[1].f64val, &dummy));
         }
         default:
             return false; // 报错
@@ -995,10 +1251,11 @@ def_prim(Math_fraction) {
 
 def_prim(Math_truncate) {
     switch (validate_num(vm, args[1])) {
+        case 3:
         case 1:
             RVAL(args[1]);
         case 2: {
-            RI32((i32)trunc(args[1].fval));
+            RI32((i32)trunc(args[1].f64val));
         }
         default:
             return false; // 报错
@@ -1007,6 +1264,7 @@ def_prim(Math_truncate) {
 
 def_prim(Math_is_infinity) {
     switch (validate_num(vm, args[1])) {
+        case 3:
         case 1:
             RFALSE();
         case 2:
@@ -1018,6 +1276,7 @@ def_prim(Math_is_infinity) {
 
 def_prim(Math_is_nan) {
     switch (validate_num(vm, args[1])) {
+        case 3:
         case 1:
             RFALSE();
         case 2:
@@ -1032,7 +1291,22 @@ def_prim(Math_i32) {
         case 1:
             RVAL(args[1]);
         case 2:
-            RI32((i32)args[1].fval);
+            RI32((i32)args[1].f64val);
+        case 3:
+            RI32(args[1].u32val);
+        default:
+            return false; // error
+    }
+}
+
+def_prim(Math_u32) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RU32((u32)args[1].i32val);
+        case 2:
+            RU32((u32)args[1].f64val);
+        case 3:
+            RVAL(args[1]);
         default:
             return false; // error
     }
@@ -1041,35 +1315,56 @@ def_prim(Math_i32) {
 def_prim(Math_f64) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64((f64)args[1].ival);
+            RF64((f64)args[1].i32val);
         case 2:
             RVAL(args[1]);
+        case 3:
+            RF64(args[1].u32val);
         default:
             return false; // error
     }
 }
 
 def_prim(Math_xor) {
-    if (!VALUE_IS_I32(args[1]) || !VALUE_IS_I32(args[2])) {
-        SET_ERROR_FALSE(vm, "Math.xor(i32, i32) -> i32;");
+    if (!VALUE_IS_U32(args[1]) || !VALUE_IS_U32(args[2])) {
+        SET_ERROR_FALSE(vm, "Math.xor(u32, u32) -> u32;");
     }
-    RI32(args[1].ival ^ args[2].ival);
+    RU32(args[1].u32val ^ args[2].u32val);
 }
 
 def_prim(i32_to_string) {
-    ROBJ(i32_2str(vm, args[0].ival));
+    ROBJ(i32_2str(vm, args[0].i32val));
+}
+
+def_prim(u32_to_string) {
+    ROBJ(u32_2str(vm, args[0].u32val));
 }
 
 def_prim(f64_to_string) {
-    ROBJ(f64_2str(vm, args[0].fval));
+    ROBJ(f64_2str(vm, args[0].f64val));
 }
 
 def_prim(i32_eq) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RBOOL(args[0].ival == args[1].ival);
+            RBOOL(args[0].i32val == args[1].i32val);
         case 2:
-            RBOOL(args[0].ival == args[1].fval);
+            RBOOL(args[0].i32val == args[1].f64val);
+        case 3:
+            RBOOL(args[0].i32val == args[1].u32val);
+        default:
+            RFALSE();
+    }
+}
+
+def_prim(u32_eq) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RBOOL(args[0].u32val == args[1].i32val);
+        case 2:
+            RBOOL(args[0].u32val == args[1].f64val);
+        case 3:
+            RBOOL(args[0].u32val == args[1].u32val);
         default:
             RFALSE();
     }
@@ -1078,9 +1373,24 @@ def_prim(i32_eq) {
 def_prim(i32_ne) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RBOOL(args[0].ival != args[1].ival);
+            RBOOL(args[0].i32val != args[1].i32val);
         case 2:
-            RBOOL(args[0].ival != args[1].fval);
+            RBOOL(args[0].i32val != args[1].f64val);
+        case 3:
+            RBOOL(args[0].i32val != args[1].u32val);
+        default:
+            RTRUE();
+    }
+}
+
+def_prim(u32_ne) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RBOOL(args[0].u32val != args[1].i32val);
+        case 2:
+            RBOOL(args[0].u32val != args[1].f64val);
+        case 3:
+            RBOOL(args[0].u32val != args[1].u32val);
         default:
             RTRUE();
     }
@@ -1089,9 +1399,11 @@ def_prim(i32_ne) {
 def_prim(f64_eq) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RBOOL(args[0].fval == args[1].ival);
+            RBOOL(args[0].f64val == args[1].i32val);
         case 2:
-            RBOOL(args[0].fval == args[1].fval);
+            RBOOL(args[0].f64val == args[1].f64val);
+        case 3:
+            RBOOL(args[0].f64val == args[1].u32val);
         default:
             RFALSE();
     }
@@ -1100,9 +1412,11 @@ def_prim(f64_eq) {
 def_prim(f64_ne) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RBOOL(args[0].fval != args[1].ival);
+            RBOOL(args[0].f64val != args[1].i32val);
         case 2:
-            RBOOL(args[0].fval != args[1].fval);
+            RBOOL(args[0].f64val != args[1].f64val);
+        case 3:
+            RBOOL(args[0].f64val != args[1].u32val);
         default:
             RTRUE();
     }
@@ -1126,7 +1440,7 @@ inline static u32 validate_index(VM* vm, Value index, u32 len) {
         SET_ERROR_FALSE(vm, "index must be a i32 value.");
         return UINT32_MAX;
     }
-    return validate_index_value(vm, index.ival, len);
+    return validate_index_value(vm, index.i32val, len);
 }
 
 static Value make_string_from_code_point(VM* vm, int value) {
@@ -1248,7 +1562,7 @@ def_prim(String_from_code_point) {
         SET_ERROR_FALSE(vm, "String.from_code_point(index: i32) -> String; index must be i32 value.");
     }
 
-    int code_point = args[1].ival;
+    int code_point = args[1].i32val;
     if (code_point < 0) {
         SET_ERROR_FALSE(vm, "code point can't be negetive.");
     }
@@ -1296,7 +1610,7 @@ def_prim(String_add) {
 def_prim(String_subscript) {
     ObjString* str = VALUE_TO_OBJSTR(args[0]);
     if (VALUE_IS_I32(args[1])) {
-        u32 index = validate_index_value(vm, args[1].ival, str->val.len);
+        u32 index = validate_index_value(vm, args[1].i32val, str->val.len);
         if (index == UINT32_MAX) {
             return false; // 报错
         }
@@ -1399,7 +1713,7 @@ def_prim(String_iterate) {
         SET_ERROR_FALSE(vm, "iter-var must be a i32 value.");
     }
 
-    int iter_var = args[1].ival; // iter_var保存的是上一个迭代的值
+    int iter_var = args[1].i32val; // iter_var保存的是上一个迭代的值
     if (iter_var < 0) {
         RFALSE();
     }
@@ -1428,7 +1742,7 @@ def_prim(String_iterate_byte) {
         SET_ERROR_FALSE(vm, "iter-var must be a i32 value.");
     }
 
-    int iter_var = args[1].ival; // iter_var保存的是上一个迭代的值
+    int iter_var = args[1].i32val; // iter_var保存的是上一个迭代的值
     if (iter_var < 0) {
         RFALSE();
     }
@@ -1478,7 +1792,7 @@ def_prim(List_subscript) {
     ObjList* self = VALUE_TO_LIST(args[0]);
 
     if (VALUE_IS_I32(args[1])) {
-        u32 index = validate_index_value(vm, args[1].ival, self->elements.count);
+        u32 index = validate_index_value(vm, args[1].i32val, self->elements.count);
         if (index == UINT32_MAX) {
             return false; // error
         }
@@ -1506,7 +1820,7 @@ def_prim(List_subscript_set) {
     }
     
     ObjList* self = VALUE_TO_LIST(args[0]);
-    u32 index = validate_index_value(vm, args[1].ival, self->elements.count);
+    u32 index = validate_index_value(vm, args[1].i32val, self->elements.count);
 
     self->elements.datas[index] = args[2];
     RVAL(args[2]);
@@ -1681,11 +1995,11 @@ def_prim(Map_iterate) {
             SET_ERROR_FALSE(vm, "iter-var must be a i32 value.");
         }
 
-        if (args[1].ival < 0) {
+        if (args[1].i32val < 0) {
             RFALSE();
         }
 
-        index = args[1].ival;
+        index = args[1].i32val;
 
         if (index >= self->capacity) {
             RFALSE();
@@ -1763,7 +2077,7 @@ def_prim(Range_iterate) {
         SET_ERROR_FALSE(vm, "iter-var must be a i32 value.");
     }
 
-    int iter = args[1].ival + self->step;
+    int iter = args[1].i32val + self->step;
 
     if (self->from < self->to && self->to <= iter || self->from > self->to && self->to >= iter) {
         RFALSE();
@@ -1778,7 +2092,7 @@ def_prim(Range_iterator_value) {
     }
     
     ObjRange* self = VALUE_TO_RANGE(args[0]);
-    int iter = args[1].ival;
+    int iter = args[1].i32val;
 
     if (self->from < self->to && self->to <= iter || self->from > self->to && self->to >= iter) {
         RFALSE();
@@ -1800,7 +2114,7 @@ def_prim(Range_new_arg3) {
         SET_ERROR_FALSE(vm, "Range.step must be a i32 value.");
     }
 
-    ROBJ(objrange_new(vm, args[1].ival, args[2].ival, args[3].ival));
+    ROBJ(objrange_new(vm, args[1].i32val, args[2].i32val, args[3].i32val));
 }
 
 def_prim(Range_new_arg2) {
@@ -1812,9 +2126,9 @@ def_prim(Range_new_arg2) {
         SET_ERROR_FALSE(vm, "Range.to must be a i32 value.");
     }
 
-    int step = args[1].ival <= args[2].ival ? 1 : -1;
+    int step = args[1].i32val <= args[2].i32val ? 1 : -1;
 
-    ROBJ(objrange_new(vm, args[1].ival, args[2].ival, step));
+    ROBJ(objrange_new(vm, args[1].i32val, args[2].i32val, step));
 }
 
 def_prim(Range_new_arg1) {
@@ -1824,9 +2138,9 @@ def_prim(Range_new_arg1) {
         SET_ERROR_FALSE(vm, "Range.from must be a i32 value.");
     }
 
-    int step = args[1].ival <= args[2].ival ? 1 : -1;
+    int step = args[1].i32val <= args[2].i32val ? 1 : -1;
 
-    ROBJ(objrange_new(vm, from, args[1].ival, step));
+    ROBJ(objrange_new(vm, from, args[1].i32val, step));
 }
 
 static char* get_file_path(const char* module_name, bool is_std) {
@@ -1927,7 +2241,7 @@ bool validate_np(VM* vm, Value val, ObjString* expected) {
 }
 
 def_prim(System_clock) {
-    RF64((double)time(NULL));
+    RU32((u32)time(NULL));
 }
 
 def_prim(System_import_module) {
@@ -2170,6 +2484,26 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->i32_class, "to_string()", prim_name(i32_to_string));
     BIND_PRIM_METHOD(vm->i32_class, "..(_)", prim_name(i32_range));
 
+    vm->u32_class = VALUE_TO_CLASS(get_core_class_value(core_module, "u32"));
+    BIND_PRIM_METHOD(vm->u32_class, "+(_)", prim_name(u32_add));
+    BIND_PRIM_METHOD(vm->u32_class, "-(_)", prim_name(u32_sub));
+    BIND_PRIM_METHOD(vm->u32_class, "*(_)", prim_name(u32_mul));
+    BIND_PRIM_METHOD(vm->u32_class, "/(_)", prim_name(u32_div));
+    BIND_PRIM_METHOD(vm->u32_class, "\%(_)", prim_name(u32_mod));
+    BIND_PRIM_METHOD(vm->u32_class, ">(_)", prim_name(u32_gt));
+    BIND_PRIM_METHOD(vm->u32_class, ">=(_)", prim_name(u32_ge));
+    BIND_PRIM_METHOD(vm->u32_class, "<(_)", prim_name(u32_lt));
+    BIND_PRIM_METHOD(vm->u32_class, "<=(_)", prim_name(u32_le));
+    BIND_PRIM_METHOD(vm->u32_class, "==(_)", prim_name(u32_eq));
+    BIND_PRIM_METHOD(vm->u32_class, "!=(_)", prim_name(u32_ne));
+    BIND_PRIM_METHOD(vm->u32_class, "&(_)", prim_name(u32_bit_and));
+    BIND_PRIM_METHOD(vm->u32_class, "|(_)", prim_name(u32_bit_or));
+    BIND_PRIM_METHOD(vm->u32_class, "<<(_)", prim_name(u32_bit_ls));
+    BIND_PRIM_METHOD(vm->u32_class, ">>(_)", prim_name(u32_bit_rs));
+    BIND_PRIM_METHOD(vm->u32_class, "~", prim_name(u32_bit_not));
+    BIND_PRIM_METHOD(vm->u32_class, "-", prim_name(u32_neg));
+    BIND_PRIM_METHOD(vm->u32_class, "to_string()", prim_name(u32_to_string));
+
     vm->f64_class = VALUE_TO_CLASS(get_core_class_value(core_module, "f64"));
     BIND_PRIM_METHOD(vm->f64_class, "+(_)", prim_name(f64_add));
     BIND_PRIM_METHOD(vm->f64_class, "-(_)", prim_name(f64_sub));
@@ -2202,6 +2536,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(math, "isinf(_)", prim_name(Math_is_infinity));
     BIND_PRIM_METHOD(math, "isnan(_)", prim_name(Math_is_nan));
     BIND_PRIM_METHOD(math, "i32(_)", prim_name(Math_i32));
+    BIND_PRIM_METHOD(math, "u32(_)", prim_name(Math_u32));
     BIND_PRIM_METHOD(math, "f64(_)", prim_name(Math_f64));
     BIND_PRIM_METHOD(math, "xor(_,_)", prim_name(Math_xor));
     
