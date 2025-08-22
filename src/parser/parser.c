@@ -153,6 +153,12 @@ static void parse_string(Parser* parser) {
             break;
         }
 
+        if (parser->cur_char == '\n') {
+            parser->cur_token.line++;
+            BufferAdd(Byte, &str, parser->vm, parser->cur_char);
+            continue;
+        }
+
         // 内嵌表达式
         if (parser->cur_char == '%') {
             if (!match_next_char(parser, '(')) {
@@ -175,7 +181,6 @@ static void parse_string(Parser* parser) {
             #define match(val) \
                 case #val[0]:\
                     BufferAdd(Byte, &str, parser->vm, ESC_##val);\
-                    get_next_char(parser);\
                     break;
             switch (parser->cur_char) {
                 match(0)
@@ -201,6 +206,7 @@ static void parse_string(Parser* parser) {
                     break;
             }
             #undef match
+            continue;
         }
 
         BufferAdd(Byte, &str, parser->vm, parser->cur_char);
