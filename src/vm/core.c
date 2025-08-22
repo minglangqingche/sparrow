@@ -1899,10 +1899,11 @@ def_prim(System_import_module) {
         RNULL();
     }
 
-    vm->cur_thread--; // 回收args[1]，只保留args[0]用于存放thread返回的结果。
+    vm->cur_thread->esp--; // 回收args[1]，只保留args[0]用于存放thread返回的结果。
 
     ObjThread* next_thread = VALUE_TO_THREAD(res);
     next_thread->caller = vm->cur_thread;
+    vm->cur_thread = next_thread;
     return false; // switch thread
 }
 
