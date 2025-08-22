@@ -1955,6 +1955,10 @@ def_prim(VM_allocated_bytes) {
     RI32((int)vm->allocated_bytes);
 }
 
+def_prim(VM_is_main) {
+    RBOOL(vm->cur_thread->caller == NULL);
+}
+
 def_prim(NativePointer_check_classifier) {
     if (!validate_str(vm, args[1])) {
         return false; // error
@@ -2208,6 +2212,7 @@ void build_core(VM* vm) {
     Class* vm_class = VALUE_TO_CLASS(get_core_class_value(core_module, "VM"));
     BIND_PRIM_METHOD(vm_class->header.class, "gc()", prim_name(VM_gc));
     BIND_PRIM_METHOD(vm_class->header.class, "allocated_bytes", prim_name(VM_allocated_bytes));
+    BIND_PRIM_METHOD(vm_class->header.class, "is_main", prim_name(VM_is_main));
 
     vm->native_pointer_class = VALUE_TO_CLASS(get_core_class_value(core_module, "NativePointer"));
     BIND_PRIM_METHOD(vm->native_pointer_class, "check_classifier(_)", prim_name(NativePointer_check_classifier));
