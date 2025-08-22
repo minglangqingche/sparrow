@@ -482,7 +482,7 @@ inline static ObjString* f64_2str(VM* vm, double num) {
     }
 
     char buf[24] = {'\0'};
-    int len = sprintf(buf, "%lf", num);
+    int len = snprintf(buf, 24, "%lf", num);
     return objstring_new(vm, buf, len);
 }
 
@@ -1025,6 +1025,35 @@ def_prim(Math_is_nan) {
         default:
             RFALSE();
     }
+}
+
+def_prim(Math_i32) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RVAL(args[1]);
+        case 2:
+            RI32((i32)args[1].fval);
+        default:
+            return false; // error
+    }
+}
+
+def_prim(Math_f64) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RF64((f64)args[1].ival);
+        case 2:
+            RVAL(args[1]);
+        default:
+            return false; // error
+    }
+}
+
+def_prim(Math_xor) {
+    if (!VALUE_IS_I32(args[1]) || !VALUE_IS_I32(args[2])) {
+        SET_ERROR_FALSE(vm, "Math.xor(i32, i32) -> i32;");
+    }
+    RI32(args[1].ival ^ args[2].ival);
 }
 
 def_prim(i32_to_string) {
@@ -2156,8 +2185,8 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->f64_class, "-", prim_name(f64_neg));
     BIND_PRIM_METHOD(vm->f64_class, "to_string()", prim_name(f64_to_string));
 
-    Class* math = VALUE_TO_CLASS(get_core_class_value(core_module, "Math"));
-    BIND_PRIM_METHOD(math, "abs(_,_)", prim_name(Math_abs));
+    Class* math = VALUE_TO_CLASS(get_core_class_value(core_module, "Math"))->header.class;
+    BIND_PRIM_METHOD(math, "abs(_)", prim_name(Math_abs));
     BIND_PRIM_METHOD(math, "acos(_)", prim_name(Math_acos));
     BIND_PRIM_METHOD(math, "asin(_)", prim_name(Math_asin));
     BIND_PRIM_METHOD(math, "atan(_)", prim_name(Math_atan));
@@ -2172,6 +2201,9 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(math, "truncate(_)", prim_name(Math_truncate));
     BIND_PRIM_METHOD(math, "isinf(_)", prim_name(Math_is_infinity));
     BIND_PRIM_METHOD(math, "isnan(_)", prim_name(Math_is_nan));
+    BIND_PRIM_METHOD(math, "i32(_)", prim_name(Math_i32));
+    BIND_PRIM_METHOD(math, "f64(_)", prim_name(Math_f64));
+    BIND_PRIM_METHOD(math, "xor(_,_)", prim_name(Math_xor));
     
     vm->string_class = VALUE_TO_CLASS(get_core_class_value(core_module, "String"));
     BIND_PRIM_METHOD(vm->string_class, "+(_)", prim_name(String_add));

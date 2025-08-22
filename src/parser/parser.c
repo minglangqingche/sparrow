@@ -381,7 +381,7 @@ void get_next_token(Parser* parser) {
             CASE_NEXT('=', '=', ASSIGN, EQ)
             CASE_NEXT('!', '=', LOGICAL_NOT, NE)
             CASE_2NEXT('>', '>', '=', GT, BIT_SR, GE)
-            CASE_2NEXT('<', '>', '=', LT, BIT_SL, LE)
+            CASE_2NEXT('<', '<', '=', LT, BIT_SL, LE)
             case '"':
                 parse_string(parser);
                 break;
