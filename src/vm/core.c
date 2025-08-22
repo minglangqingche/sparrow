@@ -2156,8 +2156,8 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->f64_class, "-", prim_name(f64_neg));
     BIND_PRIM_METHOD(vm->f64_class, "to_string()", prim_name(f64_to_string));
 
-    Class* math = VALUE_TO_CLASS(get_core_class_value(core_module, "Math"));
-    BIND_PRIM_METHOD(math, "abs(_,_)", prim_name(Math_abs));
+    Class* math = VALUE_TO_CLASS(get_core_class_value(core_module, "Math"))->header.class;
+    BIND_PRIM_METHOD(math, "abs(_)", prim_name(Math_abs));
     BIND_PRIM_METHOD(math, "acos(_)", prim_name(Math_acos));
     BIND_PRIM_METHOD(math, "asin(_)", prim_name(Math_asin));
     BIND_PRIM_METHOD(math, "atan(_)", prim_name(Math_atan));
