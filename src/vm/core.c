@@ -482,7 +482,7 @@ inline static ObjString* f64_2str(VM* vm, double num) {
     }
 
     char buf[24] = {'\0'};
-    int len = sprintf(buf, "%lf", num);
+    int len = snprintf(buf, 24, "%lf", num);
     return objstring_new(vm, buf, len);
 }
 
@@ -1024,6 +1024,28 @@ def_prim(Math_is_nan) {
             RBOOL(isnan(VALUE_TO_F64(args[0])));
         default:
             RFALSE();
+    }
+}
+
+def_prim(Math_i32) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RVAL(args[1]);
+        case 2:
+            RI32((i32)args[1].fval);
+        default:
+            return false; // error
+    }
+}
+
+def_prim(Math_f64) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RF64((f64)args[1].ival);
+        case 2:
+            RVAL(args[1]);
+        default:
+            return false; // error
     }
 }
 
@@ -2172,6 +2194,8 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(math, "truncate(_)", prim_name(Math_truncate));
     BIND_PRIM_METHOD(math, "isinf(_)", prim_name(Math_is_infinity));
     BIND_PRIM_METHOD(math, "isnan(_)", prim_name(Math_is_nan));
+    BIND_PRIM_METHOD(math, "i32(_)", prim_name(Math_i32));
+    BIND_PRIM_METHOD(math, "f64(_)", prim_name(Math_f64));
     
     vm->string_class = VALUE_TO_CLASS(get_core_class_value(core_module, "String"));
     BIND_PRIM_METHOD(vm->string_class, "+(_)", prim_name(String_add));
