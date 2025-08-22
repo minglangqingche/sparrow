@@ -44,9 +44,9 @@ static u32 hash_obj(ObjHeader* header) {
 static u32 hash_value(Value val) {
     switch (val.type) {
         case VT_F64:
-            return hash_num(val.fval);
+            return hash_num(val.f64val);
         case VT_I32:
-            return hash_num(val.ival);
+            return hash_num(val.i32val);
         case VT_FALSE:
             return 0;
         case VT_TRUE:

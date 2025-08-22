@@ -31,6 +31,8 @@ typedef enum {
     VT_FALSE,
     VT_TRUE,
     VT_I32,
+    VT_U32,
+    VT_U8,
     VT_F64,
     VT_OBJ,
 } ValueType;
@@ -38,8 +40,10 @@ typedef enum {
 typedef struct {
     ValueType type;
     union {
-        i32 ival;
-        double fval;
+        u8 u8val;
+        u32 u32val;
+        i32 i32val;
+        double f64val;
         ObjHeader* header;
     };
 } Value;

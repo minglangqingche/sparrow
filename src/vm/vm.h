@@ -56,7 +56,9 @@ struct _VM {
     Class* object_class;
     Class* null_class;
     Class* bool_class;
+    Class* u8_class;
     Class* i32_class;
+    Class* u32_class;
     Class* f64_class;
     Class* thread_class;
     Class* native_pointer_class;

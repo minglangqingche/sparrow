@@ -1,6 +1,8 @@
 static const char* core_module_code = 
 "class Null {}\n"
 "class bool {}\n"
+"class u8 {}\n"
+"class u32 {}\n"
 "class i32 {}\n"
 "class f64 {}\n"
 "class Fn {}\n"
@@ -381,4 +383,6 @@ static const char* core_module_code =
 "\n"
 "class VM {}\n"
 "\n"
-"class CFILE {}\n";
+"class CFILE {}\n"
+"\n"
+"class DyLib {}\n";

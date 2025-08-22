@@ -17,10 +17,16 @@ static const char* op_name_map[] = {
 void print_value(Value* val) {
     switch (val->type) {
         case VT_I32:
-            printf("<i32 %d>", val->ival);
+            printf("<i32 %d>", val->i32val);
+            break;
+        case VT_U32:
+            printf("<u32 %u>", val->u32val);
+            break;
+        case VT_U8:
+            printf("<u8 %u>", val->u8val);
             break;
         case VT_F64:
-            printf("<f64 %lf>", val->fval);
+            printf("<f64 %lf>", val->f64val);
             break;
         case VT_TRUE:
             printf("<bool true>");
