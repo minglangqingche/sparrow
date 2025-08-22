@@ -2023,6 +2023,7 @@ static void compile_import_stmt(CompileUnit* cu) {
     emit_load_module_var(cu, "System");
     write_opcode_short_operand(cu, OPCODE_LOAD_CONSTANT, const_name_inedx);
     emit_call(cu, 1, "import_module(_)", 16);
+    write_opcode(cu, OPCODE_POP);
 
     if (match_token(cu->parser, TOKEN_SEMICOLON)) {
         return;
