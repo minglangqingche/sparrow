@@ -23,7 +23,7 @@ class LCGRandom < Random {
     }
 
     new() {
-        seed = System.clock(); // 默认初始种子
+        seed = Math.f64(System.clock()); // 默认初始种子
     }
 
     rand() -> f64 {
@@ -35,9 +35,9 @@ class LCGRandom < Random {
 class XorshiftRandom < Random {
     static let d: f64 = 4294967296.0;
 
-    let state: i32;
+    let state: u32;
 
-    new(seed: i32) {
+    new(seed: u32) {
         state = seed == 0 ? 1 : seed; // 如果 state == 0，生成的每一项都是 0
     }
     
@@ -45,8 +45,8 @@ class XorshiftRandom < Random {
         state = System.clock();
     }
 
-    xorshift32() -> i32 {
-        let x: i32 = state;
+    xorshift32() -> u32 {
+        let x: u32 = state;
         x = Math.xor(x, (x << 13));
         x = Math.xor(x, (x << 17));
         x = Math.xor(x, (x << 5));
