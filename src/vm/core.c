@@ -1049,6 +1049,13 @@ def_prim(Math_f64) {
     }
 }
 
+def_prim(Math_xor) {
+    if (!VALUE_IS_I32(args[1]) || !VALUE_IS_I32(args[2])) {
+        SET_ERROR_FALSE(vm, "Math.xor(i32, i32) -> i32;");
+    }
+    RI32(args[1].ival ^ args[2].ival);
+}
+
 def_prim(i32_to_string) {
     ROBJ(i32_2str(vm, args[0].ival));
 }
@@ -2196,6 +2203,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(math, "isnan(_)", prim_name(Math_is_nan));
     BIND_PRIM_METHOD(math, "i32(_)", prim_name(Math_i32));
     BIND_PRIM_METHOD(math, "f64(_)", prim_name(Math_f64));
+    BIND_PRIM_METHOD(math, "xor(_,_)", prim_name(Math_xor));
     
     vm->string_class = VALUE_TO_CLASS(get_core_class_value(core_module, "String"));
     BIND_PRIM_METHOD(vm->string_class, "+(_)", prim_name(String_add));
