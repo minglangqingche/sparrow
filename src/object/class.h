@@ -40,6 +40,7 @@ typedef enum {
 #define VALUE_IS_UNDEFINED(v)   (v.type == VT_UNDEFINED)
 #define VALUE_IS_FALSE(v)       (v.type == VT_FALSE)
 #define VALUE_IS_TRUE(v)        (v.type == VT_TRUE)
+#define VALUE_IS_BOOL(v)        (VALUE_IS_TRUE(v) || VALUE_IS_FALSE(v))
 #define VALUE_IS_I32(v)         (v.type == VT_I32)
 #define VALUE_IS_F64(v)         (v.type == VT_F64)
 #define VALUE_IS_NULL(v)        (v.type == VT_NULL)

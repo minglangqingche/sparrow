@@ -23,6 +23,7 @@
 #include "vm.h"
 #include <math.h>
 #include <time.h>
+#include <unistd.h>
 #include "disassemble.h"
 
 #include "core.script.inc"
@@ -506,6 +507,13 @@ inline static bool validate_str(VM* vm, Value arg) {
         return true;
     }
     SET_ERROR_FALSE(vm, "argument must be string.");
+}
+
+inline static bool validate_bool(VM* vm, Value arg) {
+    if (VALUE_IS_BOOL(arg)) {
+        return true;
+    }
+    SET_ERROR_FALSE(vm, "argument must be bool.");
 }
 
 def_prim(f64_from_string) {
@@ -1792,8 +1800,12 @@ def_prim(Range_new_arg1) {
     ROBJ(objrange_new(vm, from, args[1].ival, step));
 }
 
-static char* get_file_path(const char* module_name) {
-    u32 root_dir_len = root_dir == NULL ? 0 : strlen(root_dir);
+static char* get_file_path(const char* module_name, bool is_std) {
+    const char* std_lib_path = getenv("SPR_STD_LIB_PATH")?: getenv("HOME");
+    
+    u32 root_dir_len = is_std ? strlen(std_lib_path) : (root_dir == NULL ? 0 : strlen(root_dir));
+    const char* root_path = is_std ? std_lib_path : root_dir;
+    
     u32 name_len = strlen(module_name);
     u32 extension_len = strlen(SCRIPT_EXTENSION);
     u32 path_len = root_dir_len + name_len + extension_len;
@@ -1803,8 +1815,8 @@ static char* get_file_path(const char* module_name) {
         MEM_ERROR("memory error when make module path.");
     }
     
-    if (root_dir != NULL) {
-        memmove(path, root_dir, root_dir_len);
+    if (root_path != NULL) {
+        memmove(path, root_path, root_dir_len);
     }
 
     memmove(path + root_dir_len, module_name, name_len);
@@ -1814,8 +1826,8 @@ static char* get_file_path(const char* module_name) {
     return path;
 }
 
-inline static char* read_module(const char* module_name) {
-    char* module_path = get_file_path(module_name);
+inline static char* read_module(const char* module_name, bool is_std) {
+    char* module_path = get_file_path(module_name, is_std);
     char* module_code = read_file(module_path);
     free(module_path);
     return module_code;
@@ -1831,13 +1843,13 @@ inline static void fprint_str(FILE* fp, const char* str) {
     fflush(fp);
 }
 
-static Value import_module(VM* vm, Value module_name) {
+static Value import_module(VM* vm, Value module_name, bool is_std) {
     if (!VALUE_IS_UNDEFINED(objmap_get(vm->all_module, module_name))) {
         return VT_TO_VALUE(VT_NULL);
     }
 
     ObjString* str = VALUE_TO_STRING(module_name);
-    const char* src = read_module(str->val.start);
+    const char* src = read_module(str->val.start, is_std);
 
     ObjThread* module_thread = load_module(vm, module_name, src);
     return OBJ_TO_VALUE(module_thread);
@@ -1894,7 +1906,25 @@ def_prim(System_import_module) {
         return false; // error
     }
 
-    Value res = import_module(vm, args[1]); // 编译module
+    Value res = import_module(vm, args[1], false); // 编译module
+    if (VALUE_IS_NULL(res)) { // module已存在，因此只需要
+        RNULL();
+    }
+
+    vm->cur_thread->esp--; // 回收args[1]，只保留args[0]用于存放thread返回的结果。
+
+    ObjThread* next_thread = VALUE_TO_THREAD(res);
+    next_thread->caller = vm->cur_thread;
+    vm->cur_thread = next_thread;
+    return false; // switch thread
+}
+
+def_prim(System_import_std_module) {
+    if (!validate_str(vm, args[1])) {
+        return false; // error
+    }
+
+    Value res = import_module(vm, args[1], true); // 编译module
     if (VALUE_IS_NULL(res)) { // module已存在，因此只需要
         RNULL();
     }
@@ -2206,6 +2236,7 @@ void build_core(VM* vm) {
     Class* system = VALUE_TO_CLASS(get_core_class_value(core_module, "System"));
     BIND_PRIM_METHOD(system->header.class, "clock()", prim_name(System_clock));
     BIND_PRIM_METHOD(system->header.class, "import_module(_)", prim_name(System_import_module));
+    BIND_PRIM_METHOD(system->header.class, "import_std_module(_)", prim_name(System_import_std_module));
     BIND_PRIM_METHOD(system->header.class, "get_module_variable(_,_)", prim_name(System_get_module_variable));
     BIND_PRIM_METHOD(system->header.class, "write_string(_)", prim_name(System_write_string));
     
