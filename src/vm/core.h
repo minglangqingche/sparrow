@@ -4,7 +4,6 @@
 #include "vm.h"
 #include "class.h"
 
-#define STD_LIB_PATH     "/Users/minglangqingche/sparrow/lib/"
 #define SCRIPT_EXTENSION ".sp"
 
 extern char* root_dir;

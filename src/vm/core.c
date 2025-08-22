@@ -1801,8 +1801,10 @@ def_prim(Range_new_arg1) {
 }
 
 static char* get_file_path(const char* module_name, bool is_std) {
-    u32 root_dir_len = is_std ? strlen(STD_LIB_PATH) : (root_dir == NULL ? 0 : strlen(root_dir));
-    char* root_path = is_std ? STD_LIB_PATH : root_dir;
+    const char* std_lib_path = getenv("SPR_STD_LIB_PATH")?: getenv("HOME");
+    
+    u32 root_dir_len = is_std ? strlen(std_lib_path) : (root_dir == NULL ? 0 : strlen(root_dir));
+    const char* root_path = is_std ? std_lib_path : root_dir;
     
     u32 name_len = strlen(module_name);
     u32 extension_len = strlen(SCRIPT_EXTENSION);

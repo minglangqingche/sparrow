@@ -9,6 +9,7 @@
 #include "parser.h"
 #include "core.h"
 #include "utils.h"
+#include <stdlib.h>
 #include <string.h>
 #include "class.h"
 #include "vm.h"
@@ -2020,14 +2021,25 @@ static void compile_import_stmt(CompileUnit* cu) {
 
     bool is_std = false;
 
+    ObjString* module_name = NULL;
+
     if (module_name_token.len == 3 && strncmp(module_name_token.start, "std", 3) == 0) {
         consume_cur_token(cu->parser, TOKEN_DOT, "expect '.' after 'std'.");
         consume_cur_token(cu->parser, TOKEN_ID, "expect id after 'std.'.");
+        
         module_name_token = cu->parser->pre_token;
+        char* buf = ALLOCATE_ARRAY(cu->parser->vm, char, module_name_token.len + 2);
+        buf[0] = '/';
+        memcpy(&buf[1], module_name_token.start, module_name_token.len);
+        buf[module_name_token.len + 1] = '\0';
+        module_name = objstring_new(cu->parser->vm, buf, module_name_token.len + 2);
+        DEALLOCATE_ARRAY(cu->parser->vm, buf, module_name_token.len + 2);
+
         is_std = true;
+    } else {
+        module_name = objstring_new(cu->parser->vm, module_name_token.start, module_name_token.len);
     }
     
-    ObjString* module_name = objstring_new(cu->parser->vm, module_name_token.start, module_name_token.len);
     u32 const_name_inedx = add_constant(cu, OBJ_TO_VALUE(module_name));
 
     // $top = System.import_module("foo")
