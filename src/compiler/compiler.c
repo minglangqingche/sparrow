@@ -2015,15 +2015,33 @@ static void compile_import_stmt(CompileUnit* cu) {
     // import foo for bar; => let bar = System.get_module_variable("foo", "bar");
     
     consume_cur_token(cu->parser, TOKEN_ID, "expect module name after import.");
+
     Token module_name_token = cu->parser->pre_token;
+
+    bool is_std = false;
+
+    if (module_name_token.len == 3 && strncmp(module_name_token.start, "std", 3) == 0) {
+        consume_cur_token(cu->parser, TOKEN_DOT, "expect '.' after 'std'.");
+        consume_cur_token(cu->parser, TOKEN_ID, "expect id after 'std.'.");
+        module_name_token = cu->parser->pre_token;
+        is_std = true;
+    }
+    
     ObjString* module_name = objstring_new(cu->parser->vm, module_name_token.start, module_name_token.len);
     u32 const_name_inedx = add_constant(cu, OBJ_TO_VALUE(module_name));
 
     // $top = System.import_module("foo")
-    emit_load_module_var(cu, "System");
-    write_opcode_short_operand(cu, OPCODE_LOAD_CONSTANT, const_name_inedx);
-    emit_call(cu, 1, "import_module(_)", 16);
-    write_opcode(cu, OPCODE_POP);
+    if (is_std) {
+        emit_load_module_var(cu, "System");
+        write_opcode_short_operand(cu, OPCODE_LOAD_CONSTANT, const_name_inedx);
+        emit_call(cu, 1, "import_std_module(_)", 20);
+        write_opcode(cu, OPCODE_POP);
+    } else {
+        emit_load_module_var(cu, "System");
+        write_opcode_short_operand(cu, OPCODE_LOAD_CONSTANT, const_name_inedx);
+        emit_call(cu, 1, "import_module(_)", 16);
+        write_opcode(cu, OPCODE_POP);
+    }
 
     if (match_token(cu->parser, TOKEN_SEMICOLON)) {
         return;
