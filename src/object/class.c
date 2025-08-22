@@ -73,6 +73,8 @@ Class* class_new_raw(VM* vm, const char* name, u32 field_num) {
 
 inline Class* get_class_of_object(VM* vm, Value object) {
     switch (object.type) {
+        case VT_U8:
+            return vm->u8_class;
         case VT_U32:
             return vm->u32_class;
         case VT_I32:

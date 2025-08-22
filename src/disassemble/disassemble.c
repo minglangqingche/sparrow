@@ -22,6 +22,9 @@ void print_value(Value* val) {
         case VT_U32:
             printf("<u32 %u>", val->u32val);
             break;
+        case VT_U8:
+            printf("<u8 %u>", val->u8val);
+            break;
         case VT_F64:
             printf("<f64 %lf>", val->f64val);
             break;

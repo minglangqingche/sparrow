@@ -18,6 +18,7 @@ typedef enum {
 #define BOOL_TO_VALUE(b)        (b ? VT_TO_VALUE(VT_TRUE) : VT_TO_VALUE(VT_FALSE))
 #define I32_TO_VALUE(i)         ((Value){.type = VT_I32, .i32val = (i)})
 #define U32_TO_VALUE(i)         ((Value){.type = VT_U32, .u32val = (i)})
+#define U8_TO_VALUE(i)         ((Value){.type = VT_U8,  .u8val = (i)})
 #define F64_TO_VALUE(f)         ((Value){.type = VT_F64, .f64val = (f)})
 #define OBJ_TO_VALUE(obj)       ((Value){.type = VT_OBJ, .header = (ObjHeader*)(obj)})
 

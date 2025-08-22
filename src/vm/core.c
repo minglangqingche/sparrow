@@ -40,6 +40,7 @@ char* root_dir = NULL;
 #define RBOOL(boolean) RVAL(BOOL_TO_VALUE(boolean))
 #define RI32(i) RVAL(I32_TO_VALUE(i))
 #define RU32(u) RVAL(U32_TO_VALUE(u))
+#define RU8(u)  RVAL(U8_TO_VALUE(u))
 #define RF64(f) RVAL(F64_TO_VALUE(f))
 #define RNULL() RVAL(VT_TO_VALUE(VT_NULL))
 #define RTRUE() RVAL(VT_TO_VALUE(VT_TRUE))
@@ -507,6 +508,8 @@ inline static int validate_num(VM* vm, Value arg) {
             return 2;
         case VT_U32:
             return 3;
+        case VT_U8:
+            return 4;
         default:
             SET_ERROR_FALSE(vm, "argument must be number.");
     }
@@ -1291,9 +1294,11 @@ def_prim(Math_i32) {
         case 1:
             RVAL(args[1]);
         case 2:
-            RI32((i32)args[1].f64val);
+            RI32(args[1].f64val);
         case 3:
             RI32(args[1].u32val);
+        case 4:
+            RI32(args[1].u8val);
         default:
             return false; // error
     }
@@ -1302,11 +1307,13 @@ def_prim(Math_i32) {
 def_prim(Math_u32) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RU32((u32)args[1].i32val);
+            RU32(args[1].i32val);
         case 2:
-            RU32((u32)args[1].f64val);
+            RU32(args[1].f64val);
         case 3:
             RVAL(args[1]);
+        case 4:
+            RU32(args[1].u8val);
         default:
             return false; // error
     }
@@ -1315,11 +1322,28 @@ def_prim(Math_u32) {
 def_prim(Math_f64) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RF64((f64)args[1].i32val);
+            RF64(args[1].i32val);
         case 2:
             RVAL(args[1]);
         case 3:
             RF64(args[1].u32val);
+        case 4:
+            RF64(args[1].u8val);
+        default:
+            return false; // error
+    }
+}
+
+def_prim(Math_u8) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RU8(args[1].i32val);
+        case 2:
+            RU8(args[1].f64val);
+        case 3:
+            RU8(args[1].u32val);
+        case 4:
+            RVAL(args[1]);
         default:
             return false; // error
     }
@@ -1638,6 +1662,15 @@ def_prim(String_byte_at) {
         return false; // error
     }
     RI32((u8)self->val.start[index]);
+}
+
+def_prim(String_u8_at) {
+    ObjString* self = VALUE_TO_OBJSTR(args[0]);
+    u32 index = validate_index(vm, args[1], self->val.len);
+    if (index == UINT32_MAX) {
+        return false; // error
+    }
+    RU8((u8)self->val.start[index]);
 }
 
 def_prim(String_byte_count) {
@@ -2386,6 +2419,18 @@ def_prim(CFILE_fclose) {
     RVAL(args[1]);
 }
 
+def_prim(u8_to_string) {
+    char buf[10] = {'\0'};
+    u32 len = snprintf(buf, 10, "%u", args[0].u8val);
+    ROBJ(objstring_new(vm, buf, len));
+}
+
+def_prim(u8_to_char) {
+    char buf[5] = {'\0'};
+    u32 len = snprintf(buf, 5, "%c", args[0].u8val);
+    ROBJ(objstring_new(vm, buf, len));
+}
+
 void build_core(VM* vm) {
     ObjModule* core_module = objmodule_new(vm, NULL);
     push_tmp_root(vm, (ObjHeader*)core_module);
@@ -2504,6 +2549,8 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->u32_class, "-", prim_name(u32_neg));
     BIND_PRIM_METHOD(vm->u32_class, "to_string()", prim_name(u32_to_string));
 
+    vm->u8_class = VALUE_TO_CLASS(get_core_class_value(core_module, "u8"));
+
     vm->f64_class = VALUE_TO_CLASS(get_core_class_value(core_module, "f64"));
     BIND_PRIM_METHOD(vm->f64_class, "+(_)", prim_name(f64_add));
     BIND_PRIM_METHOD(vm->f64_class, "-(_)", prim_name(f64_sub));
@@ -2544,6 +2591,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->string_class, "+(_)", prim_name(String_add));
     BIND_PRIM_METHOD(vm->string_class, "[_]", prim_name(String_subscript));
     BIND_PRIM_METHOD(vm->string_class, "byte_at(_)", prim_name(String_byte_at));
+    BIND_PRIM_METHOD(vm->string_class, "u8_at(_)", prim_name(String_u8_at));
     BIND_PRIM_METHOD(vm->string_class, "byte_count", prim_name(String_byte_count));
     BIND_PRIM_METHOD(vm->string_class, "code_point_at(_)", prim_name(String_code_point_at));
     BIND_PRIM_METHOD(vm->string_class, "contains(_)", prim_name(String_contains));
@@ -2555,6 +2603,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->string_class, "iterate_byte(_)", prim_name(String_iterate_byte));
     BIND_PRIM_METHOD(vm->string_class, "to_string()", prim_name(String_to_string));
     BIND_PRIM_METHOD(vm->string_class, "len", prim_name(String_byte_count));
+    
 
     vm->list_class = VALUE_TO_CLASS(get_core_class_value(core_module, "List"));
     // static
