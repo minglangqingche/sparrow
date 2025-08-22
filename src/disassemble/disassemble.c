@@ -142,9 +142,9 @@ void dis_asm(VM* vm, ObjModule* module, ObjFn* chunk) {
             } else if ((OPCODE_CALL0 <= op && op <= OPCODE_CALL16) || (op == OPCODE_STATIC_METHOD || op == OPCODE_INSTANCE_METHOD)) {
                 printf("%s", vm->all_method_names.datas[operand].str);
             } else if (op == OPCODE_LOOP) {
-                printf("-> %-5d", ip - operand + 1);
+                printf("-> %-5d", ip - operand);
             } else if (op == OPCODE_JMP || op == OPCODE_JMP_IF_FALSE || op == OPCODE_AND || op == OPCODE_OR) {
-                printf("-> %-5d", ip + operand + 1);
+                printf("-> %-5d", ip + operand);
             }
         }
 
