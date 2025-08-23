@@ -2019,41 +2019,64 @@ static void compile_import_stmt(CompileUnit* cu) {
 
     Token module_name_token = cu->parser->pre_token;
 
-    bool is_std = false;
+    int mode = 0;
+    char* buf = NULL;
+    int buf_len = -1;
 
-    ObjString* module_name = NULL;
-
+    // 读入第一级路径
     if (module_name_token.len == 3 && strncmp(module_name_token.start, "std", 3) == 0) {
-        consume_cur_token(cu->parser, TOKEN_DOT, "expect '.' after 'std'.");
-        consume_cur_token(cu->parser, TOKEN_ID, "expect id after 'std.'.");
-        
-        module_name_token = cu->parser->pre_token;
-        char* buf = ALLOCATE_ARRAY(cu->parser->vm, char, module_name_token.len + 2);
-        buf[0] = '/';
-        memcpy(&buf[1], module_name_token.start, module_name_token.len);
-        buf[module_name_token.len + 1] = '\0';
-        module_name = objstring_new(cu->parser->vm, buf, module_name_token.len + 2);
-        DEALLOCATE_ARRAY(cu->parser->vm, buf, module_name_token.len + 2);
-
-        is_std = true;
+        buf_len = 0;
+        mode = 1;
+    } else if (module_name_token.len == 3 && strncmp(module_name_token.start, "lib", 3) == 0) {
+        buf_len = 0;
+        mode = 2;
+    } else if (module_name_token.len == 4 && strncmp(module_name_token.start, "home", 4) == 0) {
+        buf_len = 1;
+        buf = malloc(buf_len + 1);
+        buf[0] = '.';
+        buf[1] = '\0';
     } else {
-        module_name = objstring_new(cu->parser->vm, module_name_token.start, module_name_token.len);
+        buf_len = module_name_token.len;
+        buf = malloc(buf_len + 1);
+        memcpy(buf, module_name_token.start, module_name_token.len);
+        buf[buf_len] = '\0';
     }
-    
+
+    // 多级路径解析
+    while (match_token(cu->parser, TOKEN_DOT)) {
+        consume_cur_token(cu->parser, TOKEN_ID, "expect id for multi-level-path.");
+        module_name_token = cu->parser->pre_token;
+        int old_len = buf_len;
+        buf_len += module_name_token.len + 1;
+        buf = realloc(buf, buf_len + 1);
+        buf[old_len] = '/';
+        memcpy(&buf[old_len + 1], module_name_token.start, module_name_token.len);
+        buf[buf_len] = '\0';
+    }
+
+    ObjString* module_name = objstring_new(cu->parser->vm, buf, buf_len);
     u32 const_name_inedx = add_constant(cu, OBJ_TO_VALUE(module_name));
 
-    // $top = System.import_module("foo")
-    if (is_std) {
-        emit_load_module_var(cu, "System");
-        write_opcode_short_operand(cu, OPCODE_LOAD_CONSTANT, const_name_inedx);
-        emit_call(cu, 1, "import_std_module(_)", 20);
-        write_opcode(cu, OPCODE_POP);
-    } else {
+    if (buf != NULL) {
+        free(buf);
+    }
+
+    buf = NULL;
+
+    if (mode == 0) {
         emit_load_module_var(cu, "System");
         write_opcode_short_operand(cu, OPCODE_LOAD_CONSTANT, const_name_inedx);
         emit_call(cu, 1, "import_module(_)", 16);
-        write_opcode(cu, OPCODE_POP);
+    } else if (mode == 1) {
+        emit_load_module_var(cu, "System");
+        write_opcode_short_operand(cu, OPCODE_LOAD_CONSTANT, const_name_inedx);
+        emit_call(cu, 1, "import_std_module(_)", 20);
+    } else if (mode == 2) {
+        emit_load_module_var(cu, "System");
+        write_opcode_short_operand(cu, OPCODE_LOAD_CONSTANT, const_name_inedx);
+        emit_call(cu, 1, "import_lib_module(_)", 20);
     }
+    write_opcode(cu, OPCODE_POP);
 
     if (match_token(cu->parser, TOKEN_SEMICOLON)) {
         return;
