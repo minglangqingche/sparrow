@@ -597,19 +597,6 @@ def_prim(Math_pi) {
     RF64(3.141592653589793);
 }
 
-def_prim(i32_add) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RI32(args[0].i32val + args[1].i32val);
-        case 2:
-            RF64((double)(args[0].i32val) + args[1].f64val);
-        case 3:
-            RI32(args[0].i32val + (i32)args[1].u32val);
-        default:
-            return false; // 报错
-    }
-}
-
 def_prim(u32_add) {
     switch (validate_num(vm, args[1])) {
         case 1:
@@ -675,14 +662,27 @@ def_prim(u32_mod) {
     }
 }
 
+def_prim(i32_add) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RI32(args[0].i32val + args[1].i32val);
+        case 2:
+            RF64((double)(args[0].i32val) + args[1].f64val);
+        case 3:
+            RI32(args[0].i32val + (i32)args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
 def_prim(i32_sub) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RU32(args[0].i32val - args[1].i32val);
+            RI32(args[0].i32val - args[1].i32val);
         case 2:
             RF64((double)(args[0].i32val) - args[1].f64val);
         case 3:
-            RU32(args[0].i32val - (i32)args[1].u32val);
+            RI32(args[0].i32val - (i32)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -691,11 +691,11 @@ def_prim(i32_sub) {
 def_prim(i32_mul) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RU32(args[0].i32val * args[1].i32val);
+            RI32(args[0].i32val * args[1].i32val);
         case 2:
             RF64((double)(args[0].i32val) * args[1].f64val);
         case 3:
-            RU32(args[0].i32val * (i32)args[1].u32val);
+            RI32(args[0].i32val * (i32)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -704,11 +704,11 @@ def_prim(i32_mul) {
 def_prim(i32_div) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RU32(args[0].i32val / args[1].i32val);
+            RI32(args[0].i32val / args[1].i32val);
         case 2:
             RF64((double)(args[0].i32val) / args[1].f64val);
         case 3:
-            RU32(args[0].i32val / (i32)args[1].u32val);
+            RI32(args[0].i32val / (i32)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -717,11 +717,11 @@ def_prim(i32_div) {
 def_prim(i32_mod) {
     switch (validate_num(vm, args[1])) {
         case 1:
-            RU32(args[0].i32val % args[1].i32val);
+            RI32(args[0].i32val % args[1].i32val);
         case 2:
             RF64(fmod((double)(args[0].i32val), args[1].f64val));
         case 3:
-            RU32(args[0].i32val % (i32)args[1].u32val);
+            RI32(args[0].i32val % (i32)args[1].u32val);
         default:
             return false; // 报错
     }
@@ -1848,7 +1848,7 @@ def_prim(List_subscript) {
 }
 
 def_prim(List_subscript_set) {
-    if (!VALUE_IS_RANGE(args[1])) {
+    if (!VALUE_IS_I32(args[1])) {
         SET_ERROR_FALSE(vm, "List<T>.[index: i32]=(val: T) -> T | List<T>; index must be i32 value.");
     }
     

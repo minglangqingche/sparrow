@@ -315,7 +315,7 @@ static u32 sign2string(Signature* sign, char* buf) {
             // id[_,...]=(_)
             buf[pos++] = '[';
 
-            for (int i = 0; i < sign->argc; i++) {
+            for (int i = 0; i < sign->argc - 1; i++) {
                 buf[pos++] = '_';
                 buf[pos++] = ',';
             }
