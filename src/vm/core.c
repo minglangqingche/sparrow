@@ -2176,11 +2176,27 @@ def_prim(Range_new_arg1) {
     ROBJ(objrange_new(vm, from, args[1].i32val, step));
 }
 
-static char* get_file_path(const char* module_name, bool is_std) {
-    const char* std_lib_path = getenv("SPR_STD_LIB_PATH")?: getenv("HOME");
+inline static char* get_file_path(const char* module_name, int mode) {
+    u32 root_dir_len = -1;
+    const char* root_path = NULL;
     
-    u32 root_dir_len = is_std ? strlen(std_lib_path) : (root_dir == NULL ? 0 : strlen(root_dir));
-    const char* root_path = is_std ? std_lib_path : root_dir;
+    // mode 决定路径的前缀
+    if (mode == 0) {
+        // 默认根，先查找SPR_HOME，若没有设置，再按root_dir查找
+        root_path = getenv("SPR_HOME");
+        if (root_path != NULL) {
+            root_dir_len = strlen(root_path);
+        } else {
+            root_dir_len = root_dir == NULL ? 0 : strlen(root_dir);
+            root_path = root_dir;
+        }
+    } else if (mode == 1) {
+        root_path = getenv("SPR_STD_LIB_PATH")?: getenv("HOME");
+        root_dir_len = strlen(root_path);
+    } else if (mode == 2) {
+        root_path = getenv("SPR_LIB_PATH")?: getenv("HOME");
+        root_dir_len = strlen(root_path);
+    }
     
     u32 name_len = strlen(module_name);
     u32 extension_len = strlen(SCRIPT_EXTENSION);
@@ -2202,8 +2218,8 @@ static char* get_file_path(const char* module_name, bool is_std) {
     return path;
 }
 
-inline static char* read_module(const char* module_name, bool is_std) {
-    char* module_path = get_file_path(module_name, is_std);
+inline static char* read_module(const char* module_name, int mode) {
+    char* module_path = get_file_path(module_name, mode);
     char* module_code = read_file(module_path);
     free(module_path);
     return module_code;
@@ -2219,13 +2235,14 @@ inline static void fprint_str(FILE* fp, const char* str) {
     fflush(fp);
 }
 
-static Value import_module(VM* vm, Value module_name, bool is_std) {
+static Value import_module(VM* vm, Value module_name, int mode) {
+    // mode: 0. root_dir, 1. std, 2. lib
     if (!VALUE_IS_UNDEFINED(objmap_get(vm->all_module, module_name))) {
         return VT_TO_VALUE(VT_NULL);
     }
 
     ObjString* str = VALUE_TO_STRING(module_name);
-    const char* src = read_module(str->val.start, is_std);
+    const char* src = read_module(str->val.start, mode);
 
     ObjThread* module_thread = load_module(vm, module_name, src);
     return OBJ_TO_VALUE(module_thread);
@@ -2277,12 +2294,12 @@ def_prim(System_clock) {
     RU32((u32)time(NULL));
 }
 
-def_prim(System_import_module) {
+inline static bool import_module_core(VM* vm, Value* args, int mode) {
     if (!validate_str(vm, args[1])) {
         return false; // error
     }
 
-    Value res = import_module(vm, args[1], false); // 编译module
+    Value res = import_module(vm, args[1], mode); // 编译module
     if (VALUE_IS_NULL(res)) { // module已存在，因此只需要
         RNULL();
     }
@@ -2295,22 +2312,16 @@ def_prim(System_import_module) {
     return false; // switch thread
 }
 
+def_prim(System_import_module) {
+    return import_module_core(vm, args, 0);
+}
+
 def_prim(System_import_std_module) {
-    if (!validate_str(vm, args[1])) {
-        return false; // error
-    }
+    return import_module_core(vm, args, 1);
+}
 
-    Value res = import_module(vm, args[1], true); // 编译module
-    if (VALUE_IS_NULL(res)) { // module已存在，因此只需要
-        RNULL();
-    }
-
-    vm->cur_thread->esp--; // 回收args[1]，只保留args[0]用于存放thread返回的结果。
-
-    ObjThread* next_thread = VALUE_TO_THREAD(res);
-    next_thread->caller = vm->cur_thread;
-    vm->cur_thread = next_thread;
-    return false; // switch thread
+def_prim(System_import_lib_module) {
+    return import_module_core(vm, args, 2);
 }
 
 def_prim(System_get_module_variable) {
@@ -2604,7 +2615,6 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->string_class, "to_string()", prim_name(String_to_string));
     BIND_PRIM_METHOD(vm->string_class, "len", prim_name(String_byte_count));
     
-
     vm->list_class = VALUE_TO_CLASS(get_core_class_value(core_module, "List"));
     // static
     BIND_PRIM_METHOD(vm->list_class->header.class, "new()", prim_name(List_new));
@@ -2653,6 +2663,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(system->header.class, "clock()", prim_name(System_clock));
     BIND_PRIM_METHOD(system->header.class, "import_module(_)", prim_name(System_import_module));
     BIND_PRIM_METHOD(system->header.class, "import_std_module(_)", prim_name(System_import_std_module));
+    BIND_PRIM_METHOD(system->header.class, "import_lib_module(_)", prim_name(System_import_lib_module));
     BIND_PRIM_METHOD(system->header.class, "get_module_variable(_,_)", prim_name(System_get_module_variable));
     BIND_PRIM_METHOD(system->header.class, "write_string(_)", prim_name(System_write_string));
     
