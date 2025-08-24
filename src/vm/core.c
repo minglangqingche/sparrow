@@ -595,10 +595,6 @@ def_prim(i32_from_string) {
     RI32(num);
 }
 
-def_prim(Math_pi) {
-    RF64(3.141592653589793);
-}
-
 def_prim(u32_add) {
     switch (validate_num(vm, args[1])) {
         case 1:
@@ -1054,84 +1050,6 @@ def_prim(f64_le) {
     }
 }
 
-def_prim(Math_abs) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RI32(abs(args[1].i32val));
-        case 2:
-            RF64(fabs(args[1].f64val));
-        case 3:
-            RVAL(args[1]);
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_acos) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(acos((double)(args[1].i32val)));
-        case 2:
-            RF64(acos(args[1].f64val));
-        case 3:
-            RF64(acos((double)(args[1].u32val)));
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_asin) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(asin((double)(args[1].i32val)));
-        case 2:
-            RF64(asin(args[1].f64val));
-        case 3:
-            RF64(asin((double)(args[1].u32val)));
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_atan) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(atan((double)(args[1].i32val)));
-        case 2:
-            RF64(atan(args[1].f64val));
-        case 3:
-            RF64(atan((double)(args[1].u32val)));
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_ceil) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64((double)(args[1].i32val));
-        case 2:
-            RF64(ceil(args[1].f64val));
-        case 3:
-            RF64((double)(args[1].u32val));
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_floor) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64((double)(args[1].i32val));
-        case 2:
-            RF64(floor(args[1].f64val));
-        case 3:
-            RF64((double)(args[1].u32val));
-        default:
-            return false; // 报错
-    }
-}
-
 def_prim(i32_neg) {
     RI32(-args[0].i32val);
 }
@@ -1142,58 +1060,6 @@ def_prim(u32_neg) {
 
 def_prim(f64_neg) {
     RF64(-args[0].f64val);
-}
-
-def_prim(Math_cos) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(cos((double)(args[1].i32val)));
-        case 2:
-            RF64(cos(args[1].f64val));
-        case 3:
-            RF64(cos((f64)(args[1].u32val)));
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_sin) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(sin((double)(args[1].i32val)));
-        case 2:
-            RF64(sin(args[1].f64val));
-        case 3:
-            RF64(sin((f64)(args[1].u32val)));
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_tan) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(tan((double)(args[1].i32val)));
-        case 2:
-            RF64(tan(args[1].f64val));
-        case 3:
-            RF64(tan((f64)(args[1].u32val)));
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_sqrt) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(sqrt((double)(args[1].i32val)));
-        case 2:
-            RF64(sqrt(args[1].f64val));
-        case 3:
-            RF64(sqrt((f64)(args[1].u32val)));
-        default:
-            return false; // 报错
-    }
 }
 
 def_prim(i32_bit_not) {
@@ -1209,153 +1075,6 @@ def_prim(i32_range) {
         SET_ERROR_FALSE(vm, "expect i32 value for i32.range(to: i32) -> Range;");
     }
     ROBJ(objrange_new(vm, args[0].i32val, args[1].i32val, 1));
-}
-
-def_prim(Math_atan2) {
-    double p1 = 0.0;
-    double p2 = 0.0;
-    
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            p1 = args[1].i32val;
-        case 2:
-            p1 = args[1].f64val;
-        case 3:
-            p1 = args[1].u32val;
-        default:
-            return false; // 报错
-    }
-
-    switch (validate_num(vm, args[2])) {
-        case 1:
-            p1 = args[2].i32val;
-        case 2:
-            p1 = args[2].f64val;
-        case 3:
-            p2 = args[2].u32val;
-        default:
-            return false; // 报错
-    }
-
-    RF64(atan2(p1, p2));
-}
-
-def_prim(Math_fraction) {
-    switch (validate_num(vm, args[1])) {
-        case 3:
-        case 1:
-            RF64(0.0);
-        case 2: {
-            double dummy;
-            RF64(modf(args[1].f64val, &dummy));
-        }
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_truncate) {
-    switch (validate_num(vm, args[1])) {
-        case 3:
-        case 1:
-            RVAL(args[1]);
-        case 2: {
-            RI32((i32)trunc(args[1].f64val));
-        }
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_is_infinity) {
-    switch (validate_num(vm, args[1])) {
-        case 3:
-        case 1:
-            RFALSE();
-        case 2:
-            RBOOL(isinf(VALUE_TO_F64(args[0])));
-        default:
-            RFALSE();
-    }
-}
-
-def_prim(Math_is_nan) {
-    switch (validate_num(vm, args[1])) {
-        case 3:
-        case 1:
-            RFALSE();
-        case 2:
-            RBOOL(isnan(VALUE_TO_F64(args[0])));
-        default:
-            RFALSE();
-    }
-}
-
-def_prim(Math_i32) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RVAL(args[1]);
-        case 2:
-            RI32(args[1].f64val);
-        case 3:
-            RI32(args[1].u32val);
-        case 4:
-            RI32(args[1].u8val);
-        default:
-            return false; // error
-    }
-}
-
-def_prim(Math_u32) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RU32(args[1].i32val);
-        case 2:
-            RU32(args[1].f64val);
-        case 3:
-            RVAL(args[1]);
-        case 4:
-            RU32(args[1].u8val);
-        default:
-            return false; // error
-    }
-}
-
-def_prim(Math_f64) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(args[1].i32val);
-        case 2:
-            RVAL(args[1]);
-        case 3:
-            RF64(args[1].u32val);
-        case 4:
-            RF64(args[1].u8val);
-        default:
-            return false; // error
-    }
-}
-
-def_prim(Math_u8) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RU8(args[1].i32val);
-        case 2:
-            RU8(args[1].f64val);
-        case 3:
-            RU8(args[1].u32val);
-        case 4:
-            RVAL(args[1]);
-        default:
-            return false; // error
-    }
-}
-
-def_prim(Math_xor) {
-    if (!VALUE_IS_U32(args[1]) || !VALUE_IS_U32(args[2])) {
-        SET_ERROR_FALSE(vm, "Math.xor(u32, u32) -> u32;");
-    }
-    RU32(args[1].u32val ^ args[2].u32val);
 }
 
 def_prim(i32_to_string) {
@@ -2484,6 +2203,7 @@ static void SprApi_register_method(SprApi* api, const char* sign_str, Primitive 
 static void SprApi_set_error(SprApi* api, const char* msg) {
     VM* vm = api->vm;
     vm->cur_thread->error_obj = OBJ_TO_VALUE(objstring_new(vm, msg, strlen(msg)));
+    vm->cur_thread = NULL; // 直接退出进程
 }
 
 def_prim(DyLib_bind) {
@@ -2649,28 +2369,6 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->f64_class, "!=(_)", prim_name(f64_ne));
     BIND_PRIM_METHOD(vm->f64_class, "-", prim_name(f64_neg));
     BIND_PRIM_METHOD(vm->f64_class, "to_string()", prim_name(f64_to_string));
-
-    Class* math_meta = VALUE_TO_CLASS(get_core_class_value(core_module, "Math"))->header.class;
-    BIND_PRIM_METHOD(math_meta, "pi", prim_name(Math_pi));
-    BIND_PRIM_METHOD(math_meta, "abs(_)", prim_name(Math_abs));
-    BIND_PRIM_METHOD(math_meta, "acos(_)", prim_name(Math_acos));
-    BIND_PRIM_METHOD(math_meta, "asin(_)", prim_name(Math_asin));
-    BIND_PRIM_METHOD(math_meta, "atan(_)", prim_name(Math_atan));
-    BIND_PRIM_METHOD(math_meta, "cos(_)", prim_name(Math_cos));
-    BIND_PRIM_METHOD(math_meta, "sin(_)", prim_name(Math_sin));
-    BIND_PRIM_METHOD(math_meta, "tan(_)", prim_name(Math_tan));
-    BIND_PRIM_METHOD(math_meta, "ceil(_)", prim_name(Math_ceil));
-    BIND_PRIM_METHOD(math_meta, "floor(_)", prim_name(Math_floor));
-    BIND_PRIM_METHOD(math_meta, "sqrt(_)", prim_name(Math_sqrt));
-    BIND_PRIM_METHOD(math_meta, "atan2(_,_)", prim_name(Math_atan2));
-    BIND_PRIM_METHOD(math_meta, "fraction(_)", prim_name(Math_fraction));
-    BIND_PRIM_METHOD(math_meta, "truncate(_)", prim_name(Math_truncate));
-    BIND_PRIM_METHOD(math_meta, "isinf(_)", prim_name(Math_is_infinity));
-    BIND_PRIM_METHOD(math_meta, "isnan(_)", prim_name(Math_is_nan));
-    BIND_PRIM_METHOD(math_meta, "i32(_)", prim_name(Math_i32));
-    BIND_PRIM_METHOD(math_meta, "u32(_)", prim_name(Math_u32));
-    BIND_PRIM_METHOD(math_meta, "f64(_)", prim_name(Math_f64));
-    BIND_PRIM_METHOD(math_meta, "xor(_,_)", prim_name(Math_xor));
     
     vm->string_class = VALUE_TO_CLASS(get_core_class_value(core_module, "String"));
     BIND_PRIM_METHOD(vm->string_class, "+(_)", prim_name(String_add));
