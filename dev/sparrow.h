@@ -3,8 +3,31 @@
 
 #include "common.h"
 
-// sparrow 中的值。内部细节不公开，修改需要使用 api 提供的函数
-typedef struct _Value Value;
+typedef struct objHeader ObjHeader;
+
+typedef enum {
+    VT_UNDEFINED,
+    VT_NULL,
+    VT_FALSE,
+    VT_TRUE,
+    VT_I32,
+    VT_U32,
+    VT_U8,
+    VT_F64,
+    VT_OBJ,
+} ValueType;
+
+// sparrow 中的值
+typedef struct _Value {
+    ValueType type;
+    union {
+        u8 u8val;
+        u32 u32val;
+        i32 i32val;
+        double f64val;
+        ObjHeader* header;
+    };
+} Value;
 
 // native 函数的定义
 typedef bool (*Primitive)(VM* vm, Value* args);
@@ -16,12 +39,6 @@ struct _SprApi {
     Class* class; // dylib将绑定到该类上
     
     // 工具函数
-    bool (*validate_i32)(Value val, i32* res);
-    Value (*i32_to_value)(i32 val);
-
-    bool (*validate_f64)(Value val, f64* res);
-    Value (*f64_to_value)(f64 val);
-
     void (*set_error)(SprApi* api, const char* msg);
 
     // 注册器

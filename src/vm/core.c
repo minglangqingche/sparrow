@@ -2467,34 +2467,18 @@ def_prim(DyLib_dlopen) {
     ROBJ(native_pointer_new(vm, handle, DyLib_native_pointer_classifier, DyLib_DLHandle_destory));
 }
 
+def_prim(DyLib_spr_dylib_path) {
+    const char* path = getenv("SPR_DYLIB_PATH");
+    if (path == NULL) {
+        RNULL();
+    }
+    ROBJ(objstring_new(vm, path, strlen(path)));
+}
+
 static void SprApi_register_method(SprApi* api, const char* sign_str, Primitive func, bool is_static) {
     VM* vm = api->vm;
     Class* bind_class = is_static ? api->class->header.class : api->class;
     BIND_PRIM_METHOD(bind_class, sign_str, func);
-}
-
-static bool SprApi_validate_i32(Value val, i32* res) {
-    if (!VALUE_IS_I32(val)) {
-        return false;
-    }
-    *res = val.i32val;
-    return true;
-}
-
-static bool SprApi_validate_f64(Value val, f64* res) {
-    if (!VALUE_IS_F64(val)) {
-        return false;
-    }
-    *res = val.f64val;
-    return true;
-}
-
-static Value SprApi_i32_to_value(i32 val) {
-    return I32_TO_VALUE(val);
-}
-
-static Value SprApi_f64_to_value(f64 val) {
-    return F64_TO_VALUE(val);
 }
 
 static void SprApi_set_error(SprApi* api, const char* msg) {
@@ -2523,10 +2507,6 @@ def_prim(DyLib_bind) {
         .vm = vm,
         .class = class,
         .register_method = SprApi_register_method,
-        .validate_i32 = SprApi_validate_i32,
-        .i32_to_value = SprApi_i32_to_value,
-        .validate_f64 = SprApi_validate_f64,
-        .f64_to_value = SprApi_f64_to_value,
         .set_error = SprApi_set_error,
     };
 
@@ -2670,26 +2650,27 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->f64_class, "-", prim_name(f64_neg));
     BIND_PRIM_METHOD(vm->f64_class, "to_string()", prim_name(f64_to_string));
 
-    Class* math = VALUE_TO_CLASS(get_core_class_value(core_module, "Math"))->header.class;
-    BIND_PRIM_METHOD(math, "abs(_)", prim_name(Math_abs));
-    BIND_PRIM_METHOD(math, "acos(_)", prim_name(Math_acos));
-    BIND_PRIM_METHOD(math, "asin(_)", prim_name(Math_asin));
-    BIND_PRIM_METHOD(math, "atan(_)", prim_name(Math_atan));
-    BIND_PRIM_METHOD(math, "cos(_)", prim_name(Math_cos));
-    BIND_PRIM_METHOD(math, "sin(_)", prim_name(Math_sin));
-    BIND_PRIM_METHOD(math, "tan(_)", prim_name(Math_tan));
-    BIND_PRIM_METHOD(math, "ceil(_)", prim_name(Math_ceil));
-    BIND_PRIM_METHOD(math, "floor(_)", prim_name(Math_floor));
-    BIND_PRIM_METHOD(math, "sqrt(_)", prim_name(Math_sqrt));
-    BIND_PRIM_METHOD(math, "atan2(_,_)", prim_name(Math_atan2));
-    BIND_PRIM_METHOD(math, "fraction(_)", prim_name(Math_fraction));
-    BIND_PRIM_METHOD(math, "truncate(_)", prim_name(Math_truncate));
-    BIND_PRIM_METHOD(math, "isinf(_)", prim_name(Math_is_infinity));
-    BIND_PRIM_METHOD(math, "isnan(_)", prim_name(Math_is_nan));
-    BIND_PRIM_METHOD(math, "i32(_)", prim_name(Math_i32));
-    BIND_PRIM_METHOD(math, "u32(_)", prim_name(Math_u32));
-    BIND_PRIM_METHOD(math, "f64(_)", prim_name(Math_f64));
-    BIND_PRIM_METHOD(math, "xor(_,_)", prim_name(Math_xor));
+    Class* math_meta = VALUE_TO_CLASS(get_core_class_value(core_module, "Math"))->header.class;
+    BIND_PRIM_METHOD(math_meta, "pi", prim_name(Math_pi));
+    BIND_PRIM_METHOD(math_meta, "abs(_)", prim_name(Math_abs));
+    BIND_PRIM_METHOD(math_meta, "acos(_)", prim_name(Math_acos));
+    BIND_PRIM_METHOD(math_meta, "asin(_)", prim_name(Math_asin));
+    BIND_PRIM_METHOD(math_meta, "atan(_)", prim_name(Math_atan));
+    BIND_PRIM_METHOD(math_meta, "cos(_)", prim_name(Math_cos));
+    BIND_PRIM_METHOD(math_meta, "sin(_)", prim_name(Math_sin));
+    BIND_PRIM_METHOD(math_meta, "tan(_)", prim_name(Math_tan));
+    BIND_PRIM_METHOD(math_meta, "ceil(_)", prim_name(Math_ceil));
+    BIND_PRIM_METHOD(math_meta, "floor(_)", prim_name(Math_floor));
+    BIND_PRIM_METHOD(math_meta, "sqrt(_)", prim_name(Math_sqrt));
+    BIND_PRIM_METHOD(math_meta, "atan2(_,_)", prim_name(Math_atan2));
+    BIND_PRIM_METHOD(math_meta, "fraction(_)", prim_name(Math_fraction));
+    BIND_PRIM_METHOD(math_meta, "truncate(_)", prim_name(Math_truncate));
+    BIND_PRIM_METHOD(math_meta, "isinf(_)", prim_name(Math_is_infinity));
+    BIND_PRIM_METHOD(math_meta, "isnan(_)", prim_name(Math_is_nan));
+    BIND_PRIM_METHOD(math_meta, "i32(_)", prim_name(Math_i32));
+    BIND_PRIM_METHOD(math_meta, "u32(_)", prim_name(Math_u32));
+    BIND_PRIM_METHOD(math_meta, "f64(_)", prim_name(Math_f64));
+    BIND_PRIM_METHOD(math_meta, "xor(_,_)", prim_name(Math_xor));
     
     vm->string_class = VALUE_TO_CLASS(get_core_class_value(core_module, "String"));
     BIND_PRIM_METHOD(vm->string_class, "+(_)", prim_name(String_add));
@@ -2790,6 +2771,7 @@ void build_core(VM* vm) {
     Class* dylib_class = VALUE_TO_CLASS(get_core_class_value(core_module, "DyLib"));
     BIND_PRIM_METHOD(dylib_class->header.class, "c_dlopen(_)", prim_name(DyLib_dlopen));
     BIND_PRIM_METHOD(dylib_class->header.class, "bind(_,_)", prim_name(DyLib_bind));
+    BIND_PRIM_METHOD(dylib_class->header.class, "SPR_DYLIB_PATH", prim_name(DyLib_spr_dylib_path));
 
     // 编译core.sp时字符串对象初始化时vm->string->class为NULL，现重新填充
     ObjHeader* header = vm->all_objs;
