@@ -7,6 +7,7 @@ add_definitions(-DDEBUG_ASSERT_ON -g)
 project(spr C)
 
 set(SRC ${PROJECT_SOURCE_DIR}/src)
+set(DEV ${PROJECT_SOURCE_DIR}/dev)
 
 aux_source_directory(${SRC}             SRC_CODE)
 aux_source_directory(${SRC}/cli         CLI_CODE)
@@ -18,7 +19,9 @@ aux_source_directory(${SRC}/vm          VM_CODE)
 aux_source_directory(${SRC}/disassemble DIS_ASM_CODE)
 aux_source_directory(${SRC}/gc          GC_CODE)
 
-set(ALL_CODE ${COMPILER_CODE} ${SRC_CODE} ${GC_CODE} ${INCLUDE_CODE} ${VM_CODE} ${PARSER_CODE} ${OBJ_CODE} ${CLI_CODE} ${DIS_ASM_CODE})
+aux_source_directory(${DEV}             DEV_CODE)
+
+set(ALL_CODE ${COMPILER_CODE} ${SRC_CODE} ${GC_CODE} ${INCLUDE_CODE} ${VM_CODE} ${PARSER_CODE} ${OBJ_CODE} ${CLI_CODE} ${DIS_ASM_CODE} ${DEV_CODE})
 
 include_directories(
     ${SRC}/cli
@@ -29,6 +32,8 @@ include_directories(
     ${SRC}/vm
     ${SRC}/gc
     ${SRC}/disassemble
+
+    ${DEV}
 )
 
 add_executable(${PROJECT_NAME} ${ALL_CODE})

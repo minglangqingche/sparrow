@@ -1,3 +1,4 @@
+#include <dlfcn.h>
 #include "core.h"
 #include <ctype.h>
 #include <errno.h>
@@ -18,6 +19,7 @@
 #include "obj_range.h"
 #include "obj_string.h"
 #include "obj_thread.h"
+#include "sparrow.h"
 #include "utf8.h"
 #include "utils.h"
 #include "vm.h"
@@ -2402,6 +2404,7 @@ def_prim(CFILE_stderr) {
 static void destroy_file(ObjNativePointer* ptr) {
     if (ptr->ptr != NULL) {
         fclose(ptr->ptr);
+        ptr->ptr = NULL;
     }
 }
 
@@ -2440,6 +2443,76 @@ def_prim(u8_to_char) {
     char buf[5] = {'\0'};
     u32 len = snprintf(buf, 5, "%c", args[0].u8val);
     ROBJ(objstring_new(vm, buf, len));
+}
+
+static ObjMap* DyLib_all_opened_lib = NULL;
+static ObjString* DyLib_native_pointer_classifier = NULL;
+
+static void DyLib_DLHandle_destory(ObjNativePointer* np) {
+    if (np->ptr != NULL) {
+        dlclose(np->ptr);
+        np->ptr = NULL;
+    }
+}
+
+def_prim(DyLib_dlopen) {
+    if (!validate_str(vm, args[1])) {
+        return false;
+    }
+
+    void* handle = dlopen(VALUE_TO_STRING(args[1])->val.start, RTLD_LAZY);
+    if (handle == NULL) {
+        RNULL();
+    }
+    ROBJ(native_pointer_new(vm, handle, DyLib_native_pointer_classifier, DyLib_DLHandle_destory));
+}
+
+def_prim(DyLib_spr_dylib_path) {
+    const char* path = getenv("SPR_DYLIB_PATH");
+    if (path == NULL) {
+        RNULL();
+    }
+    ROBJ(objstring_new(vm, path, strlen(path)));
+}
+
+static void SprApi_register_method(SprApi* api, const char* sign_str, Primitive func, bool is_static) {
+    VM* vm = api->vm;
+    Class* bind_class = is_static ? api->class->header.class : api->class;
+    BIND_PRIM_METHOD(bind_class, sign_str, func);
+}
+
+static void SprApi_set_error(SprApi* api, const char* msg) {
+    VM* vm = api->vm;
+    vm->cur_thread->error_obj = OBJ_TO_VALUE(objstring_new(vm, msg, strlen(msg)));
+}
+
+def_prim(DyLib_bind) {
+    if (!validate_np(vm, args[1], DyLib_native_pointer_classifier)) {
+        return false;
+    }
+
+    if (!VALUE_IS_CLASS(args[2])) {
+        SET_ERROR_FALSE(vm, "expect a class.");
+    }
+
+    ObjNativePointer* handle = VALUE_TO_NATIVE_POINTER(args[1]);
+    Class* class = VALUE_TO_CLASS(args[2]);
+
+    SprDyLibInit init = dlsym(handle->ptr, "pub_spr_dylib_init");
+    if (init == NULL) {
+        RFALSE();
+    }
+
+    SprApi api = (SprApi) {
+        .vm = vm,
+        .class = class,
+        .register_method = SprApi_register_method,
+        .set_error = SprApi_set_error,
+    };
+
+    init(api);
+
+    RTRUE();
 }
 
 void build_core(VM* vm) {
@@ -2577,26 +2650,27 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->f64_class, "-", prim_name(f64_neg));
     BIND_PRIM_METHOD(vm->f64_class, "to_string()", prim_name(f64_to_string));
 
-    Class* math = VALUE_TO_CLASS(get_core_class_value(core_module, "Math"))->header.class;
-    BIND_PRIM_METHOD(math, "abs(_)", prim_name(Math_abs));
-    BIND_PRIM_METHOD(math, "acos(_)", prim_name(Math_acos));
-    BIND_PRIM_METHOD(math, "asin(_)", prim_name(Math_asin));
-    BIND_PRIM_METHOD(math, "atan(_)", prim_name(Math_atan));
-    BIND_PRIM_METHOD(math, "cos(_)", prim_name(Math_cos));
-    BIND_PRIM_METHOD(math, "sin(_)", prim_name(Math_sin));
-    BIND_PRIM_METHOD(math, "tan(_)", prim_name(Math_tan));
-    BIND_PRIM_METHOD(math, "ceil(_)", prim_name(Math_ceil));
-    BIND_PRIM_METHOD(math, "floor(_)", prim_name(Math_floor));
-    BIND_PRIM_METHOD(math, "sqrt(_)", prim_name(Math_sqrt));
-    BIND_PRIM_METHOD(math, "atan2(_,_)", prim_name(Math_atan2));
-    BIND_PRIM_METHOD(math, "fraction(_)", prim_name(Math_fraction));
-    BIND_PRIM_METHOD(math, "truncate(_)", prim_name(Math_truncate));
-    BIND_PRIM_METHOD(math, "isinf(_)", prim_name(Math_is_infinity));
-    BIND_PRIM_METHOD(math, "isnan(_)", prim_name(Math_is_nan));
-    BIND_PRIM_METHOD(math, "i32(_)", prim_name(Math_i32));
-    BIND_PRIM_METHOD(math, "u32(_)", prim_name(Math_u32));
-    BIND_PRIM_METHOD(math, "f64(_)", prim_name(Math_f64));
-    BIND_PRIM_METHOD(math, "xor(_,_)", prim_name(Math_xor));
+    Class* math_meta = VALUE_TO_CLASS(get_core_class_value(core_module, "Math"))->header.class;
+    BIND_PRIM_METHOD(math_meta, "pi", prim_name(Math_pi));
+    BIND_PRIM_METHOD(math_meta, "abs(_)", prim_name(Math_abs));
+    BIND_PRIM_METHOD(math_meta, "acos(_)", prim_name(Math_acos));
+    BIND_PRIM_METHOD(math_meta, "asin(_)", prim_name(Math_asin));
+    BIND_PRIM_METHOD(math_meta, "atan(_)", prim_name(Math_atan));
+    BIND_PRIM_METHOD(math_meta, "cos(_)", prim_name(Math_cos));
+    BIND_PRIM_METHOD(math_meta, "sin(_)", prim_name(Math_sin));
+    BIND_PRIM_METHOD(math_meta, "tan(_)", prim_name(Math_tan));
+    BIND_PRIM_METHOD(math_meta, "ceil(_)", prim_name(Math_ceil));
+    BIND_PRIM_METHOD(math_meta, "floor(_)", prim_name(Math_floor));
+    BIND_PRIM_METHOD(math_meta, "sqrt(_)", prim_name(Math_sqrt));
+    BIND_PRIM_METHOD(math_meta, "atan2(_,_)", prim_name(Math_atan2));
+    BIND_PRIM_METHOD(math_meta, "fraction(_)", prim_name(Math_fraction));
+    BIND_PRIM_METHOD(math_meta, "truncate(_)", prim_name(Math_truncate));
+    BIND_PRIM_METHOD(math_meta, "isinf(_)", prim_name(Math_is_infinity));
+    BIND_PRIM_METHOD(math_meta, "isnan(_)", prim_name(Math_is_nan));
+    BIND_PRIM_METHOD(math_meta, "i32(_)", prim_name(Math_i32));
+    BIND_PRIM_METHOD(math_meta, "u32(_)", prim_name(Math_u32));
+    BIND_PRIM_METHOD(math_meta, "f64(_)", prim_name(Math_f64));
+    BIND_PRIM_METHOD(math_meta, "xor(_,_)", prim_name(Math_xor));
     
     vm->string_class = VALUE_TO_CLASS(get_core_class_value(core_module, "String"));
     BIND_PRIM_METHOD(vm->string_class, "+(_)", prim_name(String_add));
@@ -2676,7 +2750,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->native_pointer_class, "check_classifier(_)", prim_name(NativePointer_check_classifier));
     BIND_PRIM_METHOD(vm->native_pointer_class, "is_null", prim_name(NativePointer_is_null));
 
-    if (CFILE_ptr_classifier == NULL ) {
+    if (CFILE_ptr_classifier == NULL) {
         CFILE_ptr_classifier = objstring_new(vm, "FILE", 4);
         BufferAdd(Value, &vm->allways_keep_roots, vm, OBJ_TO_VALUE(CFILE_ptr_classifier));
     }
@@ -2686,6 +2760,18 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(cfile_class->header.class, "stderr", prim_name(CFILE_stderr));
     BIND_PRIM_METHOD(cfile_class->header.class, "fopen(_,_)", prim_name(CFILE_fopen));
     BIND_PRIM_METHOD(cfile_class->header.class, "fclose(_)", prim_name(CFILE_fclose));
+
+    if (DyLib_all_opened_lib == NULL) {
+        DyLib_all_opened_lib = objmap_new(vm);
+        BufferAdd(Value, &vm->allways_keep_roots, vm, OBJ_TO_VALUE(DyLib_all_opened_lib));
+    }
+    if (DyLib_native_pointer_classifier == NULL) {
+        DyLib_native_pointer_classifier = objstring_new(vm, "DLHandle", 8);
+    }
+    Class* dylib_class = VALUE_TO_CLASS(get_core_class_value(core_module, "DyLib"));
+    BIND_PRIM_METHOD(dylib_class->header.class, "c_dlopen(_)", prim_name(DyLib_dlopen));
+    BIND_PRIM_METHOD(dylib_class->header.class, "bind(_,_)", prim_name(DyLib_bind));
+    BIND_PRIM_METHOD(dylib_class->header.class, "SPR_DYLIB_PATH", prim_name(DyLib_spr_dylib_path));
 
     // 编译core.sp时字符串对象初始化时vm->string->class为NULL，现重新填充
     ObjHeader* header = vm->all_objs;

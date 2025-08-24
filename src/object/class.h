@@ -7,13 +7,6 @@
 #include "obj_string.h"
 #include "obj_fn.h"
 
-typedef enum {
-    MT_NONE,
-    MT_PRIMITIVE,
-    MT_SCRIPT,
-    MT_FN_CALL,
-} MethodType;
-
 #define VT_TO_VALUE(vt)         ((Value){vt, {0}})
 #define BOOL_TO_VALUE(b)        (b ? VT_TO_VALUE(VT_TRUE) : VT_TO_VALUE(VT_FALSE))
 #define I32_TO_VALUE(i)         ((Value){.type = VT_I32, .i32val = (i)})
@@ -59,7 +52,12 @@ typedef enum {
 
 #define CLASS_IS_BUILTIN(vm, c) (c == vm->string_class || c == vm->fn_class || c == vm->list_class || c == vm->range_class || c == vm->map_class || c == vm->null_class || c == vm->bool_class || c == vm->i32_class || c == vm->f64_class || c == vm->thread_class || c == vm->native_pointer_class)
 
-typedef bool (*Primitive)(VM* vm, Value* args);
+typedef enum {
+    MT_NONE,
+    MT_PRIMITIVE,
+    MT_SCRIPT,
+    MT_FN_CALL,
+} MethodType;
 
 typedef struct {
     MethodType type;
