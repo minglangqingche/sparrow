@@ -51,6 +51,7 @@ char* root_dir = NULL;
 #define SET_ERROR_FALSE(vm, msg) \
     do {\
         vm->cur_thread->error_obj = OBJ_TO_VALUE(objstring_new(vm, msg, strlen(msg)));\
+        vm->cur_thread = NULL;\
         return false;\
     } while (0)
 #define BIND_PRIM_METHOD(class, name, func) \
@@ -1951,11 +1952,6 @@ inline static void print_str(const char* str) {
     fflush(stdout);
 }
 
-inline static void fprint_str(FILE* fp, const char* str) {
-    fprintf(fp, "%s", str);
-    fflush(fp);
-}
-
 static Value import_module(VM* vm, Value module_name, int mode) {
     // mode: 0. root_dir, 1. std, 2. lib
     if (!VALUE_IS_UNDEFINED(objmap_get(vm->all_module, module_name))) {
@@ -2072,18 +2068,6 @@ def_prim(System_write_string) {
     RVAL(args[1]);
 }
 
-static ObjString* CFILE_ptr_classifier = NULL;
-
-def_prim(System_fwrites) {
-    if (validate_np(vm, args[1], CFILE_ptr_classifier) || !validate_str(vm, args[2])) {
-        return false; // error
-    }
-    ObjString* str = VALUE_TO_OBJSTR(args[2]);
-    ASSERT(str->val.start[str->val.len] == '\0', "string isn't terminated.");
-    fprint_str(VALUE_TO_NATIVE_POINTER(args[1])->ptr, str->val.start);
-    RVAL(args[1]);
-}
-
 def_prim(VM_gc) {
     start_gc(vm);
     RNULL();
@@ -2106,50 +2090,6 @@ def_prim(NativePointer_check_classifier) {
 
 def_prim(NativePointer_is_null) {
     RBOOL(VALUE_TO_NATIVE_POINTER(args[0])->ptr == NULL);
-}
-
-def_prim(CFILE_stdin) {
-    ROBJ(native_pointer_new(vm, stdin, CFILE_ptr_classifier, NULL));
-}
-
-def_prim(CFILE_stdout) {
-    ROBJ(native_pointer_new(vm, stdout, CFILE_ptr_classifier, NULL));
-}
-
-def_prim(CFILE_stderr) {
-    ROBJ(native_pointer_new(vm, stderr, CFILE_ptr_classifier, NULL));
-}
-
-static void destroy_file(ObjNativePointer* ptr) {
-    if (ptr->ptr != NULL) {
-        fclose(ptr->ptr);
-        ptr->ptr = NULL;
-    }
-}
-
-def_prim(CFILE_fopen) {
-    if (!validate_str(vm, args[1]) || !validate_str(vm, args[2])) {
-        return false; // error
-    }
-    
-    FILE* fp = fopen(VALUE_TO_STRING(args[1])->val.start, VALUE_TO_STRING(args[2])->val.start);
-    if (fp == NULL) {
-        RNULL();
-    }
-
-    ROBJ(native_pointer_new(vm, fp, CFILE_ptr_classifier, destroy_file));
-}
-
-def_prim(CFILE_fclose) {
-    if (!validate_np(vm, args[1], CFILE_ptr_classifier)) {
-        return false; // error
-    }
-    
-    FILE* fp = VALUE_TO_NATIVE_POINTER(args[1])->ptr;
-    fclose(fp);
-    VALUE_TO_NATIVE_POINTER(args[1])->ptr = NULL;
-
-    RVAL(args[1]);
 }
 
 def_prim(u8_to_string) {
@@ -2200,10 +2140,63 @@ static void SprApi_register_method(SprApi* api, const char* sign_str, Primitive 
     BIND_PRIM_METHOD(bind_class, sign_str, func);
 }
 
+static bool SprApi_validate_string(Value val, const char** res, u32* len) {
+    if (!VALUE_IS_STRING(val)) {
+        *res = NULL;
+        *len = 0;
+        return false;
+    }
+    *res = VALUE_TO_STRING(val)->val.start;
+    *len = VALUE_TO_STRING(val)->val.len;
+    return true;
+}
+
+static void SprApi_release_tmp_obj(SprApi* api) {
+    while (api->tmp_obj_count > 0) {
+        pop_tmp_root(api->vm);
+        api->tmp_obj_count--;
+    }
+}
+
+static void SprApi_push_tmp_obj(SprApi* api, Value* val) {
+    if (val == NULL || val->type != VT_OBJ) {
+        return;
+    }
+    push_tmp_root(api->vm, val->header);
+    api->tmp_obj_count++;
+}
+
 static void SprApi_set_error(SprApi* api, const char* msg) {
     VM* vm = api->vm;
     vm->cur_thread->error_obj = OBJ_TO_VALUE(objstring_new(vm, msg, strlen(msg)));
-    vm->cur_thread = NULL; // 直接退出进程
+    vm->cur_thread = NULL; // 有错误直接退出
+}
+
+static int SprApi_validate_native_pointer(SprApi* api, Value val, ObjString* expect) {
+    if (!VALUE_IS_NATIVE_POINTER(val)) {
+        return -1;
+    }
+
+    if (native_pointer_check_classifier(VALUE_TO_NATIVE_POINTER(val), expect)) {
+        return 1;
+    }
+
+    return 0;
+}
+
+static void* SprApi_unpack_native_pointer(ObjNativePointer* ptr) {
+    return ptr == NULL ? NULL : ptr->ptr;
+}
+
+static void SprApi_set_native_pointer(ObjNativePointer* ptr, void* p) {
+    if (ptr == NULL) {
+        return;
+    }
+    ptr->ptr = p;
+}
+
+void push_keep_root(SprApi* api, Value val) {
+    BufferAdd(Value, &api->vm->allways_keep_roots, api->vm, val);
 }
 
 def_prim(DyLib_bind) {
@@ -2226,8 +2219,17 @@ def_prim(DyLib_bind) {
     SprApi api = (SprApi) {
         .vm = vm,
         .class = class,
+        .tmp_obj_count = 0,
         .register_method = SprApi_register_method,
         .set_error = SprApi_set_error,
+        .release_tmp_obj = SprApi_release_tmp_obj,
+        .create_native_pointer = native_pointer_new,
+        .validate_string = SprApi_validate_string,
+        .push_tmp_obj = SprApi_push_tmp_obj,
+        .validate_native_pointer = SprApi_validate_native_pointer,
+        .unpack_native_pointer = SprApi_unpack_native_pointer,
+        .set_native_pointer = SprApi_set_native_pointer,
+        .create_string = objstring_new,
     };
 
     init(api);
@@ -2447,17 +2449,6 @@ void build_core(VM* vm) {
     vm->native_pointer_class = VALUE_TO_CLASS(get_core_class_value(core_module, "NativePointer"));
     BIND_PRIM_METHOD(vm->native_pointer_class, "check_classifier(_)", prim_name(NativePointer_check_classifier));
     BIND_PRIM_METHOD(vm->native_pointer_class, "is_null", prim_name(NativePointer_is_null));
-
-    if (CFILE_ptr_classifier == NULL) {
-        CFILE_ptr_classifier = objstring_new(vm, "FILE", 4);
-        BufferAdd(Value, &vm->allways_keep_roots, vm, OBJ_TO_VALUE(CFILE_ptr_classifier));
-    }
-    Class* cfile_class = VALUE_TO_CLASS(get_core_class_value(core_module, "CFILE"));
-    BIND_PRIM_METHOD(cfile_class->header.class, "stdin", prim_name(CFILE_stdin));
-    BIND_PRIM_METHOD(cfile_class->header.class, "stdout", prim_name(CFILE_stdout));
-    BIND_PRIM_METHOD(cfile_class->header.class, "stderr", prim_name(CFILE_stderr));
-    BIND_PRIM_METHOD(cfile_class->header.class, "fopen(_,_)", prim_name(CFILE_fopen));
-    BIND_PRIM_METHOD(cfile_class->header.class, "fclose(_)", prim_name(CFILE_fclose));
 
     if (DyLib_all_opened_lib == NULL) {
         DyLib_all_opened_lib = objmap_new(vm);

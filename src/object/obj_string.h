@@ -3,11 +3,11 @@
 
 #include "header_obj.h"
 
-typedef struct {
+struct _ObjString{
     ObjHeader header;
     u32 hash_code;
     CharValue val;
-} ObjString;
+};
 
 u32 hash_string(char* str, u32 len);
 void objstring_hash(ObjString* str);
