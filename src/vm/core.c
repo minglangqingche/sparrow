@@ -2108,6 +2108,23 @@ def_prim(u8_to_string) {
 
 def_prim(u8_to_char) {
     char buf[5] = {'\0'};
+    u32 len = 0;
+
+    if (args[0].u8val == '\n') {
+        len = snprintf(buf, 5, "'\\n'");
+    } else if (args[0].u8val == '\b') {
+        len = snprintf(buf, 5, "'\\b'");
+    } else if (args[0].u8val == '\t') {
+        len = snprintf(buf, 5, "'\\t'");
+    } else {
+        len = snprintf(buf, 5, "'%c'", args[0].u8val);
+    }
+    
+    ROBJ(objstring_new(vm, buf, len));
+}
+
+def_prim(u8_to_printable) {
+    char buf[5] = {'\0'};
     u32 len = snprintf(buf, 5, "%c", args[0].u8val);
     ROBJ(objstring_new(vm, buf, len));
 }
@@ -2383,6 +2400,7 @@ void build_core(VM* vm) {
     vm->u8_class = VALUE_TO_CLASS(get_core_class_value(core_module, "u8"));
     BIND_PRIM_METHOD(vm->u8_class, "to_string()", prim_name(u8_to_string));
     BIND_PRIM_METHOD(vm->u8_class, "to_char()", prim_name(u8_to_char));
+    BIND_PRIM_METHOD(vm->u8_class, "to_printable()", prim_name(u8_to_printable));
 
     vm->f64_class = VALUE_TO_CLASS(get_core_class_value(core_module, "f64"));
     BIND_PRIM_METHOD(vm->f64_class, "+(_)", prim_name(f64_add));
