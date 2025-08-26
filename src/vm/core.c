@@ -264,7 +264,7 @@ def_prim(Object_debug_str) {
 
 // Object::type(self) -> Class;
 def_prim(Object_type) {
-    ROBJ(VALUE_TO_OBJ(args[0])->class);
+    ROBJ(get_class_of_object(vm, args[0]));
 }
 
 // Object::super_type(self) -> Class;
@@ -2092,6 +2092,14 @@ def_prim(NativePointer_is_null) {
     RBOOL(VALUE_TO_NATIVE_POINTER(args[0])->ptr == NULL);
 }
 
+def_prim(NativePointer_classifiers) {
+    ObjNativePointer* np = (ObjNativePointer*)args[0].header;
+    if (np->classifier == NULL) {
+        RNULL();
+    }
+    ROBJ(np->classifier);
+}
+
 def_prim(u8_to_string) {
     char buf[10] = {'\0'};
     u32 len = snprintf(buf, 10, "%u", args[0].u8val);
@@ -2172,12 +2180,17 @@ static void SprApi_set_error(SprApi* api, const char* msg) {
     vm->cur_thread = NULL; // 有错误直接退出
 }
 
+Value* SprApi_list_elements(ObjList* list, int* len) {
+    *len = list->elements.count;
+    return list->elements.datas;
+}
+
 static int SprApi_validate_native_pointer(SprApi* api, Value val, ObjString* expect) {
     if (!VALUE_IS_NATIVE_POINTER(val)) {
         return -1;
     }
 
-    if (native_pointer_check_classifier(VALUE_TO_NATIVE_POINTER(val), expect)) {
+    if (!native_pointer_check_classifier(VALUE_TO_NATIVE_POINTER(val), expect)) {
         return 1;
     }
 
@@ -2195,7 +2208,7 @@ static void SprApi_set_native_pointer(ObjNativePointer* ptr, void* p) {
     ptr->ptr = p;
 }
 
-void push_keep_root(SprApi* api, Value val) {
+static void SprApi_push_keep_root(SprApi* api, Value val) {
     BufferAdd(Value, &api->vm->allways_keep_roots, api->vm, val);
 }
 
@@ -2219,17 +2232,29 @@ def_prim(DyLib_bind) {
     SprApi api = (SprApi) {
         .vm = vm,
         .class = class,
-        .tmp_obj_count = 0,
+
         .register_method = SprApi_register_method,
         .set_error = SprApi_set_error,
-        .release_tmp_obj = SprApi_release_tmp_obj,
-        .create_native_pointer = native_pointer_new,
-        .validate_string = SprApi_validate_string,
+        
+        // 对象管理
+        .tmp_obj_count = 0,
         .push_tmp_obj = SprApi_push_tmp_obj,
+        .release_tmp_obj = SprApi_release_tmp_obj,
+        .push_keep_root = SprApi_push_keep_root,
+
+        // native pointer
+        .create_native_pointer = native_pointer_new,
         .validate_native_pointer = SprApi_validate_native_pointer,
         .unpack_native_pointer = SprApi_unpack_native_pointer,
         .set_native_pointer = SprApi_set_native_pointer,
+
+        // string
+        .validate_string = SprApi_validate_string,
         .create_string = objstring_new,
+        
+        // list
+        .create_list = objlist_new,
+        .list_elements = SprApi_list_elements,
     };
 
     init(api);
@@ -2249,7 +2274,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->object_class, "!=(_)", prim_name(Object_ne));
     BIND_PRIM_METHOD(vm->object_class, "is(_)", prim_name(Object_is));
     BIND_PRIM_METHOD(vm->object_class, "to_string()", prim_name(Object_to_string));
-    BIND_PRIM_METHOD(vm->object_class, "type()", prim_name(Object_type));
+    BIND_PRIM_METHOD(vm->object_class, "type", prim_name(Object_type));
     BIND_PRIM_METHOD(vm->object_class, "super_type()", prim_name(Object_super_type));
 
     vm->class_of_class = define_class(vm, core_module, "Class");
@@ -2356,6 +2381,8 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->u32_class, "to_string()", prim_name(u32_to_string));
 
     vm->u8_class = VALUE_TO_CLASS(get_core_class_value(core_module, "u8"));
+    BIND_PRIM_METHOD(vm->u8_class, "to_string()", prim_name(u8_to_string));
+    BIND_PRIM_METHOD(vm->u8_class, "to_char()", prim_name(u8_to_char));
 
     vm->f64_class = VALUE_TO_CLASS(get_core_class_value(core_module, "f64"));
     BIND_PRIM_METHOD(vm->f64_class, "+(_)", prim_name(f64_add));
@@ -2449,6 +2476,7 @@ void build_core(VM* vm) {
     vm->native_pointer_class = VALUE_TO_CLASS(get_core_class_value(core_module, "NativePointer"));
     BIND_PRIM_METHOD(vm->native_pointer_class, "check_classifier(_)", prim_name(NativePointer_check_classifier));
     BIND_PRIM_METHOD(vm->native_pointer_class, "is_null", prim_name(NativePointer_is_null));
+    BIND_PRIM_METHOD(vm->native_pointer_class, "classifier", prim_name(NativePointer_classifiers));
 
     if (DyLib_all_opened_lib == NULL) {
         DyLib_all_opened_lib = objmap_new(vm);

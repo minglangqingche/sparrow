@@ -7,7 +7,7 @@
 ObjList* objlist_new(VM* vm, u32 element_count) {
     Value* element_array = element_count <= 0 ? NULL : ALLOCATE_ARRAY(vm, Value, element_count);
     ObjList* obj = ALLOCATE(vm, ObjList);
-    obj->elements = (BufferType(Value)){
+    obj->elements = (BufferType(Value)) {
         .datas = element_array,
         .capacity = element_count,
         .count = element_count,
