@@ -51,6 +51,7 @@ char* root_dir = NULL;
 #define SET_ERROR_FALSE(vm, msg) \
     do {\
         vm->cur_thread->error_obj = OBJ_TO_VALUE(objstring_new(vm, msg, strlen(msg)));\
+        vm->cur_thread = NULL;\
         return false;\
     } while (0)
 #define BIND_PRIM_METHOD(class, name, func) \
@@ -263,7 +264,7 @@ def_prim(Object_debug_str) {
 
 // Object::type(self) -> Class;
 def_prim(Object_type) {
-    ROBJ(VALUE_TO_OBJ(args[0])->class);
+    ROBJ(get_class_of_object(vm, args[0]));
 }
 
 // Object::super_type(self) -> Class;
@@ -593,10 +594,6 @@ def_prim(i32_from_string) {
     }
 
     RI32(num);
-}
-
-def_prim(Math_pi) {
-    RF64(3.141592653589793);
 }
 
 def_prim(u32_add) {
@@ -1054,84 +1051,6 @@ def_prim(f64_le) {
     }
 }
 
-def_prim(Math_abs) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RI32(abs(args[1].i32val));
-        case 2:
-            RF64(fabs(args[1].f64val));
-        case 3:
-            RVAL(args[1]);
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_acos) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(acos((double)(args[1].i32val)));
-        case 2:
-            RF64(acos(args[1].f64val));
-        case 3:
-            RF64(acos((double)(args[1].u32val)));
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_asin) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(asin((double)(args[1].i32val)));
-        case 2:
-            RF64(asin(args[1].f64val));
-        case 3:
-            RF64(asin((double)(args[1].u32val)));
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_atan) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(atan((double)(args[1].i32val)));
-        case 2:
-            RF64(atan(args[1].f64val));
-        case 3:
-            RF64(atan((double)(args[1].u32val)));
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_ceil) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64((double)(args[1].i32val));
-        case 2:
-            RF64(ceil(args[1].f64val));
-        case 3:
-            RF64((double)(args[1].u32val));
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_floor) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64((double)(args[1].i32val));
-        case 2:
-            RF64(floor(args[1].f64val));
-        case 3:
-            RF64((double)(args[1].u32val));
-        default:
-            return false; // 报错
-    }
-}
-
 def_prim(i32_neg) {
     RI32(-args[0].i32val);
 }
@@ -1142,58 +1061,6 @@ def_prim(u32_neg) {
 
 def_prim(f64_neg) {
     RF64(-args[0].f64val);
-}
-
-def_prim(Math_cos) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(cos((double)(args[1].i32val)));
-        case 2:
-            RF64(cos(args[1].f64val));
-        case 3:
-            RF64(cos((f64)(args[1].u32val)));
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_sin) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(sin((double)(args[1].i32val)));
-        case 2:
-            RF64(sin(args[1].f64val));
-        case 3:
-            RF64(sin((f64)(args[1].u32val)));
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_tan) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(tan((double)(args[1].i32val)));
-        case 2:
-            RF64(tan(args[1].f64val));
-        case 3:
-            RF64(tan((f64)(args[1].u32val)));
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_sqrt) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(sqrt((double)(args[1].i32val)));
-        case 2:
-            RF64(sqrt(args[1].f64val));
-        case 3:
-            RF64(sqrt((f64)(args[1].u32val)));
-        default:
-            return false; // 报错
-    }
 }
 
 def_prim(i32_bit_not) {
@@ -1209,153 +1076,6 @@ def_prim(i32_range) {
         SET_ERROR_FALSE(vm, "expect i32 value for i32.range(to: i32) -> Range;");
     }
     ROBJ(objrange_new(vm, args[0].i32val, args[1].i32val, 1));
-}
-
-def_prim(Math_atan2) {
-    double p1 = 0.0;
-    double p2 = 0.0;
-    
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            p1 = args[1].i32val;
-        case 2:
-            p1 = args[1].f64val;
-        case 3:
-            p1 = args[1].u32val;
-        default:
-            return false; // 报错
-    }
-
-    switch (validate_num(vm, args[2])) {
-        case 1:
-            p1 = args[2].i32val;
-        case 2:
-            p1 = args[2].f64val;
-        case 3:
-            p2 = args[2].u32val;
-        default:
-            return false; // 报错
-    }
-
-    RF64(atan2(p1, p2));
-}
-
-def_prim(Math_fraction) {
-    switch (validate_num(vm, args[1])) {
-        case 3:
-        case 1:
-            RF64(0.0);
-        case 2: {
-            double dummy;
-            RF64(modf(args[1].f64val, &dummy));
-        }
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_truncate) {
-    switch (validate_num(vm, args[1])) {
-        case 3:
-        case 1:
-            RVAL(args[1]);
-        case 2: {
-            RI32((i32)trunc(args[1].f64val));
-        }
-        default:
-            return false; // 报错
-    }
-}
-
-def_prim(Math_is_infinity) {
-    switch (validate_num(vm, args[1])) {
-        case 3:
-        case 1:
-            RFALSE();
-        case 2:
-            RBOOL(isinf(VALUE_TO_F64(args[0])));
-        default:
-            RFALSE();
-    }
-}
-
-def_prim(Math_is_nan) {
-    switch (validate_num(vm, args[1])) {
-        case 3:
-        case 1:
-            RFALSE();
-        case 2:
-            RBOOL(isnan(VALUE_TO_F64(args[0])));
-        default:
-            RFALSE();
-    }
-}
-
-def_prim(Math_i32) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RVAL(args[1]);
-        case 2:
-            RI32(args[1].f64val);
-        case 3:
-            RI32(args[1].u32val);
-        case 4:
-            RI32(args[1].u8val);
-        default:
-            return false; // error
-    }
-}
-
-def_prim(Math_u32) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RU32(args[1].i32val);
-        case 2:
-            RU32(args[1].f64val);
-        case 3:
-            RVAL(args[1]);
-        case 4:
-            RU32(args[1].u8val);
-        default:
-            return false; // error
-    }
-}
-
-def_prim(Math_f64) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RF64(args[1].i32val);
-        case 2:
-            RVAL(args[1]);
-        case 3:
-            RF64(args[1].u32val);
-        case 4:
-            RF64(args[1].u8val);
-        default:
-            return false; // error
-    }
-}
-
-def_prim(Math_u8) {
-    switch (validate_num(vm, args[1])) {
-        case 1:
-            RU8(args[1].i32val);
-        case 2:
-            RU8(args[1].f64val);
-        case 3:
-            RU8(args[1].u32val);
-        case 4:
-            RVAL(args[1]);
-        default:
-            return false; // error
-    }
-}
-
-def_prim(Math_xor) {
-    if (!VALUE_IS_U32(args[1]) || !VALUE_IS_U32(args[2])) {
-        SET_ERROR_FALSE(vm, "Math.xor(u32, u32) -> u32;");
-    }
-    RU32(args[1].u32val ^ args[2].u32val);
 }
 
 def_prim(i32_to_string) {
@@ -2232,11 +1952,6 @@ inline static void print_str(const char* str) {
     fflush(stdout);
 }
 
-inline static void fprint_str(FILE* fp, const char* str) {
-    fprintf(fp, "%s", str);
-    fflush(fp);
-}
-
 static Value import_module(VM* vm, Value module_name, int mode) {
     // mode: 0. root_dir, 1. std, 2. lib
     if (!VALUE_IS_UNDEFINED(objmap_get(vm->all_module, module_name))) {
@@ -2353,18 +2068,6 @@ def_prim(System_write_string) {
     RVAL(args[1]);
 }
 
-static ObjString* CFILE_ptr_classifier = NULL;
-
-def_prim(System_fwrites) {
-    if (validate_np(vm, args[1], CFILE_ptr_classifier) || !validate_str(vm, args[2])) {
-        return false; // error
-    }
-    ObjString* str = VALUE_TO_OBJSTR(args[2]);
-    ASSERT(str->val.start[str->val.len] == '\0', "string isn't terminated.");
-    fprint_str(VALUE_TO_NATIVE_POINTER(args[1])->ptr, str->val.start);
-    RVAL(args[1]);
-}
-
 def_prim(VM_gc) {
     start_gc(vm);
     RNULL();
@@ -2389,48 +2092,12 @@ def_prim(NativePointer_is_null) {
     RBOOL(VALUE_TO_NATIVE_POINTER(args[0])->ptr == NULL);
 }
 
-def_prim(CFILE_stdin) {
-    ROBJ(native_pointer_new(vm, stdin, CFILE_ptr_classifier, NULL));
-}
-
-def_prim(CFILE_stdout) {
-    ROBJ(native_pointer_new(vm, stdout, CFILE_ptr_classifier, NULL));
-}
-
-def_prim(CFILE_stderr) {
-    ROBJ(native_pointer_new(vm, stderr, CFILE_ptr_classifier, NULL));
-}
-
-static void destroy_file(ObjNativePointer* ptr) {
-    if (ptr->ptr != NULL) {
-        fclose(ptr->ptr);
-        ptr->ptr = NULL;
-    }
-}
-
-def_prim(CFILE_fopen) {
-    if (!validate_str(vm, args[1]) || !validate_str(vm, args[2])) {
-        return false; // error
-    }
-    
-    FILE* fp = fopen(VALUE_TO_STRING(args[1])->val.start, VALUE_TO_STRING(args[2])->val.start);
-    if (fp == NULL) {
+def_prim(NativePointer_classifiers) {
+    ObjNativePointer* np = (ObjNativePointer*)args[0].header;
+    if (np->classifier == NULL) {
         RNULL();
     }
-
-    ROBJ(native_pointer_new(vm, fp, CFILE_ptr_classifier, destroy_file));
-}
-
-def_prim(CFILE_fclose) {
-    if (!validate_np(vm, args[1], CFILE_ptr_classifier)) {
-        return false; // error
-    }
-    
-    FILE* fp = VALUE_TO_NATIVE_POINTER(args[1])->ptr;
-    fclose(fp);
-    VALUE_TO_NATIVE_POINTER(args[1])->ptr = NULL;
-
-    RVAL(args[1]);
+    ROBJ(np->classifier);
 }
 
 def_prim(u8_to_string) {
@@ -2440,6 +2107,23 @@ def_prim(u8_to_string) {
 }
 
 def_prim(u8_to_char) {
+    char buf[5] = {'\0'};
+    u32 len = 0;
+
+    if (args[0].u8val == '\n') {
+        len = snprintf(buf, 5, "'\\n'");
+    } else if (args[0].u8val == '\b') {
+        len = snprintf(buf, 5, "'\\b'");
+    } else if (args[0].u8val == '\t') {
+        len = snprintf(buf, 5, "'\\t'");
+    } else {
+        len = snprintf(buf, 5, "'%c'", args[0].u8val);
+    }
+    
+    ROBJ(objstring_new(vm, buf, len));
+}
+
+def_prim(u8_to_printable) {
     char buf[5] = {'\0'};
     u32 len = snprintf(buf, 5, "%c", args[0].u8val);
     ROBJ(objstring_new(vm, buf, len));
@@ -2481,9 +2165,68 @@ static void SprApi_register_method(SprApi* api, const char* sign_str, Primitive 
     BIND_PRIM_METHOD(bind_class, sign_str, func);
 }
 
+static bool SprApi_validate_string(Value val, const char** res, u32* len) {
+    if (!VALUE_IS_STRING(val)) {
+        *res = NULL;
+        *len = 0;
+        return false;
+    }
+    *res = VALUE_TO_STRING(val)->val.start;
+    *len = VALUE_TO_STRING(val)->val.len;
+    return true;
+}
+
+static void SprApi_release_tmp_obj(SprApi* api) {
+    while (api->tmp_obj_count > 0) {
+        pop_tmp_root(api->vm);
+        api->tmp_obj_count--;
+    }
+}
+
+static void SprApi_push_tmp_obj(SprApi* api, Value* val) {
+    if (val == NULL || val->type != VT_OBJ) {
+        return;
+    }
+    push_tmp_root(api->vm, val->header);
+    api->tmp_obj_count++;
+}
+
 static void SprApi_set_error(SprApi* api, const char* msg) {
     VM* vm = api->vm;
     vm->cur_thread->error_obj = OBJ_TO_VALUE(objstring_new(vm, msg, strlen(msg)));
+    vm->cur_thread = NULL; // 有错误直接退出
+}
+
+Value* SprApi_list_elements(ObjList* list, int* len) {
+    *len = list->elements.count;
+    return list->elements.datas;
+}
+
+static int SprApi_validate_native_pointer(SprApi* api, Value val, ObjString* expect) {
+    if (!VALUE_IS_NATIVE_POINTER(val)) {
+        return -1;
+    }
+
+    if (!native_pointer_check_classifier(VALUE_TO_NATIVE_POINTER(val), expect)) {
+        return 1;
+    }
+
+    return 0;
+}
+
+static void* SprApi_unpack_native_pointer(ObjNativePointer* ptr) {
+    return ptr == NULL ? NULL : ptr->ptr;
+}
+
+static void SprApi_set_native_pointer(ObjNativePointer* ptr, void* p) {
+    if (ptr == NULL) {
+        return;
+    }
+    ptr->ptr = p;
+}
+
+static void SprApi_push_keep_root(SprApi* api, Value val) {
+    BufferAdd(Value, &api->vm->allways_keep_roots, api->vm, val);
 }
 
 def_prim(DyLib_bind) {
@@ -2506,8 +2249,29 @@ def_prim(DyLib_bind) {
     SprApi api = (SprApi) {
         .vm = vm,
         .class = class,
+
         .register_method = SprApi_register_method,
         .set_error = SprApi_set_error,
+        
+        // 对象管理
+        .tmp_obj_count = 0,
+        .push_tmp_obj = SprApi_push_tmp_obj,
+        .release_tmp_obj = SprApi_release_tmp_obj,
+        .push_keep_root = SprApi_push_keep_root,
+
+        // native pointer
+        .create_native_pointer = native_pointer_new,
+        .validate_native_pointer = SprApi_validate_native_pointer,
+        .unpack_native_pointer = SprApi_unpack_native_pointer,
+        .set_native_pointer = SprApi_set_native_pointer,
+
+        // string
+        .validate_string = SprApi_validate_string,
+        .create_string = objstring_new,
+        
+        // list
+        .create_list = objlist_new,
+        .list_elements = SprApi_list_elements,
     };
 
     init(api);
@@ -2527,7 +2291,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->object_class, "!=(_)", prim_name(Object_ne));
     BIND_PRIM_METHOD(vm->object_class, "is(_)", prim_name(Object_is));
     BIND_PRIM_METHOD(vm->object_class, "to_string()", prim_name(Object_to_string));
-    BIND_PRIM_METHOD(vm->object_class, "type()", prim_name(Object_type));
+    BIND_PRIM_METHOD(vm->object_class, "type", prim_name(Object_type));
     BIND_PRIM_METHOD(vm->object_class, "super_type()", prim_name(Object_super_type));
 
     vm->class_of_class = define_class(vm, core_module, "Class");
@@ -2634,6 +2398,9 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->u32_class, "to_string()", prim_name(u32_to_string));
 
     vm->u8_class = VALUE_TO_CLASS(get_core_class_value(core_module, "u8"));
+    BIND_PRIM_METHOD(vm->u8_class, "to_string()", prim_name(u8_to_string));
+    BIND_PRIM_METHOD(vm->u8_class, "to_char()", prim_name(u8_to_char));
+    BIND_PRIM_METHOD(vm->u8_class, "to_printable()", prim_name(u8_to_printable));
 
     vm->f64_class = VALUE_TO_CLASS(get_core_class_value(core_module, "f64"));
     BIND_PRIM_METHOD(vm->f64_class, "+(_)", prim_name(f64_add));
@@ -2649,28 +2416,6 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->f64_class, "!=(_)", prim_name(f64_ne));
     BIND_PRIM_METHOD(vm->f64_class, "-", prim_name(f64_neg));
     BIND_PRIM_METHOD(vm->f64_class, "to_string()", prim_name(f64_to_string));
-
-    Class* math_meta = VALUE_TO_CLASS(get_core_class_value(core_module, "Math"))->header.class;
-    BIND_PRIM_METHOD(math_meta, "pi", prim_name(Math_pi));
-    BIND_PRIM_METHOD(math_meta, "abs(_)", prim_name(Math_abs));
-    BIND_PRIM_METHOD(math_meta, "acos(_)", prim_name(Math_acos));
-    BIND_PRIM_METHOD(math_meta, "asin(_)", prim_name(Math_asin));
-    BIND_PRIM_METHOD(math_meta, "atan(_)", prim_name(Math_atan));
-    BIND_PRIM_METHOD(math_meta, "cos(_)", prim_name(Math_cos));
-    BIND_PRIM_METHOD(math_meta, "sin(_)", prim_name(Math_sin));
-    BIND_PRIM_METHOD(math_meta, "tan(_)", prim_name(Math_tan));
-    BIND_PRIM_METHOD(math_meta, "ceil(_)", prim_name(Math_ceil));
-    BIND_PRIM_METHOD(math_meta, "floor(_)", prim_name(Math_floor));
-    BIND_PRIM_METHOD(math_meta, "sqrt(_)", prim_name(Math_sqrt));
-    BIND_PRIM_METHOD(math_meta, "atan2(_,_)", prim_name(Math_atan2));
-    BIND_PRIM_METHOD(math_meta, "fraction(_)", prim_name(Math_fraction));
-    BIND_PRIM_METHOD(math_meta, "truncate(_)", prim_name(Math_truncate));
-    BIND_PRIM_METHOD(math_meta, "isinf(_)", prim_name(Math_is_infinity));
-    BIND_PRIM_METHOD(math_meta, "isnan(_)", prim_name(Math_is_nan));
-    BIND_PRIM_METHOD(math_meta, "i32(_)", prim_name(Math_i32));
-    BIND_PRIM_METHOD(math_meta, "u32(_)", prim_name(Math_u32));
-    BIND_PRIM_METHOD(math_meta, "f64(_)", prim_name(Math_f64));
-    BIND_PRIM_METHOD(math_meta, "xor(_,_)", prim_name(Math_xor));
     
     vm->string_class = VALUE_TO_CLASS(get_core_class_value(core_module, "String"));
     BIND_PRIM_METHOD(vm->string_class, "+(_)", prim_name(String_add));
@@ -2749,17 +2494,7 @@ void build_core(VM* vm) {
     vm->native_pointer_class = VALUE_TO_CLASS(get_core_class_value(core_module, "NativePointer"));
     BIND_PRIM_METHOD(vm->native_pointer_class, "check_classifier(_)", prim_name(NativePointer_check_classifier));
     BIND_PRIM_METHOD(vm->native_pointer_class, "is_null", prim_name(NativePointer_is_null));
-
-    if (CFILE_ptr_classifier == NULL) {
-        CFILE_ptr_classifier = objstring_new(vm, "FILE", 4);
-        BufferAdd(Value, &vm->allways_keep_roots, vm, OBJ_TO_VALUE(CFILE_ptr_classifier));
-    }
-    Class* cfile_class = VALUE_TO_CLASS(get_core_class_value(core_module, "CFILE"));
-    BIND_PRIM_METHOD(cfile_class->header.class, "stdin", prim_name(CFILE_stdin));
-    BIND_PRIM_METHOD(cfile_class->header.class, "stdout", prim_name(CFILE_stdout));
-    BIND_PRIM_METHOD(cfile_class->header.class, "stderr", prim_name(CFILE_stderr));
-    BIND_PRIM_METHOD(cfile_class->header.class, "fopen(_,_)", prim_name(CFILE_fopen));
-    BIND_PRIM_METHOD(cfile_class->header.class, "fclose(_)", prim_name(CFILE_fclose));
+    BIND_PRIM_METHOD(vm->native_pointer_class, "classifier", prim_name(NativePointer_classifiers));
 
     if (DyLib_all_opened_lib == NULL) {
         DyLib_all_opened_lib = objmap_new(vm);

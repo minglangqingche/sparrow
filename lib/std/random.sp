@@ -1,3 +1,5 @@
+import std.math for Math;
+
 class Random {
     // 继承该类的类只需要实现 rand() -> f64 即可
 

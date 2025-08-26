@@ -4,10 +4,6 @@
 #include "header_obj.h"
 #include "obj_string.h"
 
-typedef struct _ObjNativePointer ObjNativePointer;
-
-typedef void (*Destroy)(ObjNativePointer*);
-
 struct _ObjNativePointer {
     ObjHeader header;
     void* ptr;

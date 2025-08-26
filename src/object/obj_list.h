@@ -4,10 +4,10 @@
 #include "header_obj.h"
 #include "utils.h"
 
-typedef struct {
+struct _ObjList {
     ObjHeader header;
     BufferType(Value) elements;
-} ObjList;
+};
 
 ObjList* objlist_new(VM* vm, u32 element_count);
 Value objlist_remove_element(VM* vm, ObjList* list, u32 index);
