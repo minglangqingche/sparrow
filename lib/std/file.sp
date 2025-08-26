@@ -62,4 +62,23 @@ class File {
 
         return CFile.read_as_string(fp, file_size);
     }
+
+    read_as_bytes() -> List<u8>? {
+        if fp == null || fp.is_null {
+            return null;
+        }
+
+        if !CFile.fseek(fp, CFile.SEEK_END, 0) {
+            return null;
+        }
+
+        let file_size: u32 = CFile.ftell(fp);
+        if file_size < 0 {
+            return null;
+        }
+
+        CFile.rewind(fp);
+
+        return CFile.read_as_bytes(fp, file_size);
+    }
 }
