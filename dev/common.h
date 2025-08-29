@@ -21,9 +21,7 @@ typedef struct _Parser Parser;
 typedef struct _Class Class;
 
 #ifndef __STDBOOL_H
-    #define bool char
-    #define true 1
-    #define false 0
+    #include <stdbool.h>
 #endif
 
 #define UNUSED __attribute__ ((unused))

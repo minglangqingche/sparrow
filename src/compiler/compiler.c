@@ -544,6 +544,7 @@ static int declare_variable(CompileUnit* cu, const char* name, u32 len) {
     return declare_local_var(cu, name, len);
 }
 
+static bool has_pending_gt = false; // 为了解决 '>>' 闭合 <> 的问题。
 static void type_annotation(CompileUnit* cu) {
     // 类型注释按规则解析后不保存任何信息，只做注释用
     // String | List<String> | Map<String, int> | List<Map<String, int>> | Tuple<int, int, int> | Fn<(T) -> K> | Fn<() -> None>?
@@ -576,7 +577,13 @@ static void type_annotation(CompileUnit* cu) {
             } while (match_token(cu->parser, TOKEN_COMMA));
         }
 
-        consume_cur_token(cu->parser, TOKEN_GT, "uncloused typping <>.");
+        if (has_pending_gt) {
+            has_pending_gt = false;
+        } else if (match_token(cu->parser, TOKEN_BIT_SR)) {
+            has_pending_gt = true;
+        } else {
+            consume_cur_token(cu->parser, TOKEN_GT, "uncloused typping <>.");
+        }
     }
 
     match_token(cu->parser, TOKEN_QUESTION);
