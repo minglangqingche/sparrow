@@ -1,5 +1,5 @@
-#ifndef __DYLIB_SPR_MATH_H__
-#define __DYLIB_SPR_MATH_H__
+#ifndef __DYLIB_SPR_CFILE_H__
+#define __DYLIB_SPR_CFILE_H__
 
 #include "sparrow.h"
 

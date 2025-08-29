@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.31.2)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+add_definitions(-g)
 
 project(sprmath C)
 
