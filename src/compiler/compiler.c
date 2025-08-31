@@ -2210,7 +2210,7 @@ static void closure_expr(CompileUnit* cu, bool can_assign) {
     consume_cur_token(cu->parser, TOKEN_LP, "expect '(' after fn.");
     if (!match_token(cu->parser, TOKEN_RP)) {
         process_para_list(&fncu, &temp_func_sign);
-        consume_cur_token(cu->parser, TOKEN_RP, "expect ')' after argument list.");
+        consume_cur_token(cu->parser, TOKEN_RP, "expect ')' after parameter list.");
     }
 
     FUNCTION_RESULT_TYPPING_CHECK();
