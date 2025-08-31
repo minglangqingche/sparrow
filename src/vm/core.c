@@ -2011,6 +2011,14 @@ def_prim(System_clock) {
     RU32((u32)time(NULL));
 }
 
+def_prim(System_get_time) {
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    
+    // 转换为带小数的毫秒数
+    RF64((double)now.tv_sec * 1000.0 + (double)now.tv_nsec / 1000000.0);
+}
+
 inline static bool import_module_core(VM* vm, Value* args, int mode) {
     if (!validate_str(vm, args[1])) {
         return false; // error
@@ -2480,6 +2488,7 @@ void build_core(VM* vm) {
 
     Class* system = VALUE_TO_CLASS(get_core_class_value(core_module, "System"));
     BIND_PRIM_METHOD(system->header.class, "clock()", prim_name(System_clock));
+    BIND_PRIM_METHOD(system->header.class, "get_time()", prim_name(System_get_time));
     BIND_PRIM_METHOD(system->header.class, "import_module(_)", prim_name(System_import_module));
     BIND_PRIM_METHOD(system->header.class, "import_std_module(_)", prim_name(System_import_std_module));
     BIND_PRIM_METHOD(system->header.class, "import_lib_module(_)", prim_name(System_import_lib_module));
