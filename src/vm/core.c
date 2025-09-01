@@ -349,7 +349,7 @@ def_prim(Thread_new) {
 // Thread::abort(msg: String);
 def_prim(Thread_abort) {
     vm->cur_thread->error_obj = args[1];
-    // TODO: 没写完
+    vm->cur_thread = NULL;
     return VALUE_IS_NULL(args[1]);
 }
 
@@ -2137,6 +2137,54 @@ def_prim(u8_to_printable) {
     ROBJ(objstring_new(vm, buf, len));
 }
 
+def_prim(u8_eq) {
+    if (args[1].type != VT_U8) {
+        SET_ERROR_FALSE(vm, "u8.>(val: u8) -> bool;\n");
+    }
+
+    RBOOL(args[0].u8val == args[1].u8val);
+}
+
+def_prim(u8_ne) {
+    if (args[1].type != VT_U8) {
+        SET_ERROR_FALSE(vm, "u8.>(val: u8) -> bool;\n");
+    }
+
+    RBOOL(args[0].u8val != args[1].u8val);
+}
+
+def_prim(u8_gt) {
+    if (args[1].type != VT_U8) {
+        SET_ERROR_FALSE(vm, "u8.>(val: u8) -> bool;\n");
+    }
+
+    RBOOL(args[0].u8val > args[1].u8val);
+}
+
+def_prim(u8_ge) {
+    if (args[1].type != VT_U8) {
+        SET_ERROR_FALSE(vm, "u8.>(val: u8) -> bool;\n");
+    }
+
+    RBOOL(args[0].u8val >= args[1].u8val);
+}
+
+def_prim(u8_lt) {
+    if (args[1].type != VT_U8) {
+        SET_ERROR_FALSE(vm, "u8.>(val: u8) -> bool;\n");
+    }
+
+    RBOOL(args[0].u8val < args[1].u8val);
+}
+
+def_prim(u8_le) {
+    if (args[1].type != VT_U8) {
+        SET_ERROR_FALSE(vm, "u8.>(val: u8) -> bool;\n");
+    }
+
+    RBOOL(args[0].u8val <= args[1].u8val);
+}
+
 static ObjMap* DyLib_all_opened_lib = NULL;
 static ObjString* DyLib_native_pointer_classifier = NULL;
 
@@ -2409,6 +2457,12 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->u8_class, "to_string()", prim_name(u8_to_string));
     BIND_PRIM_METHOD(vm->u8_class, "to_char()", prim_name(u8_to_char));
     BIND_PRIM_METHOD(vm->u8_class, "to_printable()", prim_name(u8_to_printable));
+    BIND_PRIM_METHOD(vm->u8_class, "==(_)", prim_name(u8_eq));
+    BIND_PRIM_METHOD(vm->u8_class, "!=(_)", prim_name(u8_ne));
+    BIND_PRIM_METHOD(vm->u8_class, ">(_)", prim_name(u8_gt));
+    BIND_PRIM_METHOD(vm->u8_class, ">=(_)", prim_name(u8_ge));
+    BIND_PRIM_METHOD(vm->u8_class, "<(_)", prim_name(u8_lt));
+    BIND_PRIM_METHOD(vm->u8_class, "<=(_)", prim_name(u8_le));
 
     vm->f64_class = VALUE_TO_CLASS(get_core_class_value(core_module, "f64"));
     BIND_PRIM_METHOD(vm->f64_class, "+(_)", prim_name(f64_add));
