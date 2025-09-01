@@ -7,6 +7,7 @@
 #include "obj_range.h"
 #include "core.h"
 #include "obj_string.h"
+#include "sparrow.h"
 #include "utils.h"
 #include "vm.h"
 
@@ -27,6 +28,14 @@ bool value_is_equal(Value a, Value b) {
 
     if (a.type == VT_F64) {
         return a.f64val == b.f64val;
+    }
+
+    if (a.type == VT_U32) {
+        return a.u32val == b.u32val;
+    }
+
+    if (a.type == VT_U8) {
+        return a.u8val == b.u8val;
     }
 
     if (a.header == b.header) {

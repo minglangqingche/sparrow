@@ -263,47 +263,39 @@ inline static void skip_comment(Parser* parser) {
     skip_blanks(parser);
 }
 
-inline static void parse_hex_number(Parser* parser) {
-    while (isxdigit(parser->cur_char)) {
-        get_next_char(parser);
-    }
-}
+static void parse_number(Parser* parser) {
+    unsigned long ival = 0;
+    if (parser->cur_char == '0' && match_next_char(parser, 'x')) {
+        get_next_char(parser); // x
+        
+        while (isxdigit(parser->cur_char)) {
+            get_next_char(parser);
+        }
+        
+        ival = strtol(parser->cur_token.start, NULL, 16);
+    } else if (parser->cur_char == '0' && match_next_char(parser, 'o')) {
+        get_next_char(parser); // o
+        
+        while (parser->cur_char >= '0' && parser->cur_char <= '7') {  // 注意：八进制是0-7
+            get_next_char(parser);
+        }
 
-inline static bool parse_dec_number(Parser* parser) {
-    while (isdigit(parser->cur_char)) {
-        get_next_char(parser);
-    }
-
-    if (parser->cur_char == '.' && isdigit(look_ahead_char(parser))) {
-        get_next_char(parser);
+        ival = strtol(parser->cur_token.start, NULL, 8);
+    } else {
+        bool is_f64 = false;
         while (isdigit(parser->cur_char)) {
             get_next_char(parser);
         }
-        return true;
-    }
 
-    return false;
-}
+        if (parser->cur_char == '.' && isdigit(look_ahead_char(parser))) {
+            get_next_char(parser);
+            while (isdigit(parser->cur_char)) {
+                get_next_char(parser);
+            }
+            is_f64 = true;
+        }
 
-inline static void parse_oct_number(Parser* parser) {
-    while (parser->cur_char >= '0' && parser->cur_char <= '8') {
-        get_next_char(parser);
-    }
-}
-
-static void parse_number(Parser* parser) {
-    if (parser->cur_char == '0' && match_next_char(parser, 'x')) {
-        get_next_char(parser); // x
-        parse_hex_number(parser);
-        int val = strtol(parser->cur_token.start, NULL, 16);
-        parser->cur_token.value = I32_TO_VALUE(val);
-    } else if (parser->cur_char == '0' && match_next_char(parser, 'o')) {
-        get_next_char(parser); // o
-        parse_oct_number(parser);
-        int val = strtol(parser->cur_token.start, NULL, 8);
-        parser->cur_token.value = I32_TO_VALUE(val);
-    } else {
-        if (parse_dec_number(parser)) {
+        if (is_f64) {
             f64 val = strtod(parser->cur_token.start, NULL);
             parser->cur_token.value = F64_TO_VALUE(val);
 
@@ -311,13 +303,85 @@ static void parse_number(Parser* parser) {
             parser->cur_token.type = TOKEN_F64;
             return;
         } else {
-            int val = strtol(parser->cur_token.start, NULL, 10);
-            parser->cur_token.value = I32_TO_VALUE(val);
+            ival = strtol(parser->cur_token.start, NULL, 10);
         }
     }
 
+    TokenType type = TOKEN_I32;
+
+    // 检查是否有'u'后缀起始
+    if (parser->cur_char == 'u') {
+        if (match_next_char(parser, '8')) {
+            get_next_char(parser);
+            type = TOKEN_U8;
+        } else if (match_next_char(parser, '3') && match_next_char(parser, '2')) {
+            get_next_char(parser);
+            type = TOKEN_U32;
+        } else {
+            LEX_ERROR(parser, "expect u32 or u8.");
+        }
+    }
+
+    switch (type) {
+        case TOKEN_U8:
+            parser->cur_token.value = U8_TO_VALUE((u8)ival);
+            break;
+        case TOKEN_U32:
+            parser->cur_token.value = U32_TO_VALUE((u32)ival);
+            break;
+        case TOKEN_I32:
+            parser->cur_token.value = I32_TO_VALUE((i32)ival);
+            break;
+        default:
+            UNREACHABLE();
+    }
+
     parser->cur_token.len = (u32)(parser->next_char - parser->cur_token.start - 1);
-    parser->cur_token.type = TOKEN_I32;
+    parser->cur_token.type = type;
+}
+
+static void parse_ch(Parser* parser) {
+    get_next_char(parser); // skip '\''
+
+    char ch = parser->cur_char;
+    
+    if (ch == '\n') {
+        parser->cur_token.line++;
+    } else if (ch == '\\') { // 转义字符
+        get_next_char(parser); // skip '\\'
+
+        #define match(val) \
+            case #val[0]:\
+                ch = ESC_##val;\
+                break;
+        switch (parser->cur_char) {
+            match(0)
+            match(a)
+            match(b)
+            match(f)
+            match(n)
+            match(r)
+            match(t)
+
+            case '"':
+                ch = '\"';
+                break;
+            case '\\':
+                ch = '\\';
+                break;
+            
+            default:
+                LEX_ERROR(parser, "unsupport escape \\%c", parser->cur_char);
+                break;
+        }
+        #undef match
+    }
+
+    if (!match_next_char(parser, '\'')) {
+        LEX_ERROR(parser, "unterminated char.\n");
+    }
+    parser->cur_token.value = U8_TO_VALUE(ch);
+    parser->cur_token.type = TOKEN_U8;
 }
 
 void get_next_token(Parser* parser) {
@@ -384,6 +448,10 @@ void get_next_token(Parser* parser) {
             CASE_2NEXT('<', '<', '=', LT, BIT_SL, LE)
             case '"':
                 parse_string(parser);
+                break;
+            
+            case '\'':
+                parse_ch(parser);
                 break;
             
             default:
