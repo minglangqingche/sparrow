@@ -2,6 +2,7 @@
 #include "class.h"
 #include "common.h"
 #include "header_obj.h"
+#include "sparrow.h"
 #include "utils.h"
 #include "vm.h"
 #include "obj_string.h"
@@ -47,6 +48,10 @@ static u32 hash_value(Value val) {
             return hash_num(val.f64val);
         case VT_I32:
             return hash_num(val.i32val);
+        case VT_U32:
+            return hash_num(val.u32val);
+        case VT_U8:
+            return hash_num(val.u8val);
         case VT_FALSE:
             return 0;
         case VT_TRUE:

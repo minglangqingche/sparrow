@@ -514,7 +514,7 @@ inline static int validate_num(VM* vm, Value arg) {
         case VT_U8:
             return 4;
         default:
-            SET_ERROR_FALSE(vm, "argument must be number.");
+            SET_ERROR_FALSE(vm, "argument must be number.\n");
     }
 }
 
@@ -574,13 +574,14 @@ def_prim(i32_from_string) {
         RNULL();
     }
 
-    ASSERT(str->val.start[str->val.len] == '\0', "str don't teminate.");
+    ASSERT(str->val.start[str->val.len] == '\0', "str don't terminated.");
 
     errno = 0;
     char* end_ptr;
 
     int num = strtod(str->val.start, &end_ptr);
 
+    // 消耗结尾的空格
     while (*end_ptr != '\0' && isspace((unsigned char)*end_ptr)) {
         end_ptr++;
     }
@@ -1178,12 +1179,14 @@ inline static u32 validate_index_value(VM* vm, int index, u32 len) {
     }
 
     vm->cur_thread->error_obj = OBJ_TO_VALUE(objstring_new(vm, "index out of bound.", 19));
+    vm->cur_thread = NULL;
     return UINT32_MAX;
 }
 
 inline static u32 validate_index(VM* vm, Value index, u32 len) {
     if (!VALUE_IS_I32(index)) {
-        SET_ERROR_FALSE(vm, "index must be a i32 value.");
+        vm->cur_thread->error_obj = OBJ_TO_VALUE(objstring_new(vm, "index must be a i32 value.", 26));
+        vm->cur_thread = NULL;
         return UINT32_MAX;
     }
     return validate_index_value(vm, index.i32val, len);
@@ -1228,8 +1231,8 @@ static u32 calculate_range(VM* vm, ObjRange* range, u32* count_ptr, int* step_pt
     }
 
     *step_ptr = range->step;
-    ASSERT((from < to && range->step < 0) || (from >= to && range->step > 0), "range step is opposite to its direction.");
-    *count_ptr = floor((double)(to - 1 - from) / abs(range->step) + 1) + 1; // 索引的元素数量
+    ASSERT((from < to && range->step > 0) || (from >= to && range->step < 0), "range step is opposite to its direction.");
+    *count_ptr = floor((double)(to - 1 - from) / abs(range->step) + 1); // 索引的元素数量
 
     return from;
 }
@@ -1666,6 +1669,8 @@ static bool validate_key(VM* vm, Value arg) {
         || VALUE_IS_STRING(arg)
         || VALUE_IS_RANGE(arg)
         || VALUE_IS_CLASS(arg)
+        || VALUE_IS_U32(arg)
+        || VALUE_IS_U8(arg)
     ) {
         return true;
     }
@@ -2139,7 +2144,7 @@ def_prim(u8_to_printable) {
 
 def_prim(u8_eq) {
     if (args[1].type != VT_U8) {
-        SET_ERROR_FALSE(vm, "u8.>(val: u8) -> bool;\n");
+        SET_ERROR_FALSE(vm, "u8.==(val: u8) -> bool;\n");
     }
 
     RBOOL(args[0].u8val == args[1].u8val);
@@ -2147,7 +2152,7 @@ def_prim(u8_eq) {
 
 def_prim(u8_ne) {
     if (args[1].type != VT_U8) {
-        SET_ERROR_FALSE(vm, "u8.>(val: u8) -> bool;\n");
+        SET_ERROR_FALSE(vm, "u8.!=(val: u8) -> bool;\n");
     }
 
     RBOOL(args[0].u8val != args[1].u8val);
@@ -2163,7 +2168,7 @@ def_prim(u8_gt) {
 
 def_prim(u8_ge) {
     if (args[1].type != VT_U8) {
-        SET_ERROR_FALSE(vm, "u8.>(val: u8) -> bool;\n");
+        SET_ERROR_FALSE(vm, "u8.>=(val: u8) -> bool;\n");
     }
 
     RBOOL(args[0].u8val >= args[1].u8val);
@@ -2171,7 +2176,7 @@ def_prim(u8_ge) {
 
 def_prim(u8_lt) {
     if (args[1].type != VT_U8) {
-        SET_ERROR_FALSE(vm, "u8.>(val: u8) -> bool;\n");
+        SET_ERROR_FALSE(vm, "u8.<(val: u8) -> bool;\n");
     }
 
     RBOOL(args[0].u8val < args[1].u8val);
@@ -2179,7 +2184,7 @@ def_prim(u8_lt) {
 
 def_prim(u8_le) {
     if (args[1].type != VT_U8) {
-        SET_ERROR_FALSE(vm, "u8.>(val: u8) -> bool;\n");
+        SET_ERROR_FALSE(vm, "u8.<=(val: u8) -> bool;\n");
     }
 
     RBOOL(args[0].u8val <= args[1].u8val);
@@ -2432,6 +2437,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->i32_class, "-", prim_name(i32_neg));
     BIND_PRIM_METHOD(vm->i32_class, "to_string()", prim_name(i32_to_string));
     BIND_PRIM_METHOD(vm->i32_class, "..(_)", prim_name(i32_range));
+    BIND_PRIM_METHOD(vm->i32_class->header.class, "from_string(_)", prim_name(i32_from_string));
 
     vm->u32_class = VALUE_TO_CLASS(get_core_class_value(core_module, "u32"));
     BIND_PRIM_METHOD(vm->u32_class, "+(_)", prim_name(u32_add));
@@ -2478,6 +2484,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->f64_class, "!=(_)", prim_name(f64_ne));
     BIND_PRIM_METHOD(vm->f64_class, "-", prim_name(f64_neg));
     BIND_PRIM_METHOD(vm->f64_class, "to_string()", prim_name(f64_to_string));
+    BIND_PRIM_METHOD(vm->f64_class->header.class, "from_string(_)", prim_name(f64_from_string));
     
     vm->string_class = VALUE_TO_CLASS(get_core_class_value(core_module, "String"));
     BIND_PRIM_METHOD(vm->string_class, "+(_)", prim_name(String_add));
