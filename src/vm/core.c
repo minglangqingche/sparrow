@@ -349,7 +349,7 @@ def_prim(Thread_new) {
 // Thread::abort(msg: String);
 def_prim(Thread_abort) {
     vm->cur_thread->error_obj = args[1];
-    // TODO: 没写完
+    vm->cur_thread = NULL;
     return VALUE_IS_NULL(args[1]);
 }
 
@@ -514,7 +514,7 @@ inline static int validate_num(VM* vm, Value arg) {
         case VT_U8:
             return 4;
         default:
-            SET_ERROR_FALSE(vm, "argument must be number.");
+            SET_ERROR_FALSE(vm, "argument must be number.\n");
     }
 }
 
@@ -574,13 +574,14 @@ def_prim(i32_from_string) {
         RNULL();
     }
 
-    ASSERT(str->val.start[str->val.len] == '\0', "str don't teminate.");
+    ASSERT(str->val.start[str->val.len] == '\0', "str don't terminated.");
 
     errno = 0;
     char* end_ptr;
 
     int num = strtod(str->val.start, &end_ptr);
 
+    // 消耗结尾的空格
     while (*end_ptr != '\0' && isspace((unsigned char)*end_ptr)) {
         end_ptr++;
     }
@@ -1178,12 +1179,14 @@ inline static u32 validate_index_value(VM* vm, int index, u32 len) {
     }
 
     vm->cur_thread->error_obj = OBJ_TO_VALUE(objstring_new(vm, "index out of bound.", 19));
+    vm->cur_thread = NULL;
     return UINT32_MAX;
 }
 
 inline static u32 validate_index(VM* vm, Value index, u32 len) {
     if (!VALUE_IS_I32(index)) {
-        SET_ERROR_FALSE(vm, "index must be a i32 value.");
+        vm->cur_thread->error_obj = OBJ_TO_VALUE(objstring_new(vm, "index must be a i32 value.", 26));
+        vm->cur_thread = NULL;
         return UINT32_MAX;
     }
     return validate_index_value(vm, index.i32val, len);
@@ -1200,8 +1203,9 @@ static Value make_string_from_code_point(VM* vm, int value) {
 
     objheader_init(vm, &str->header, OT_STRING, vm->string_class);
     str->val.len = byte;
-    str->val.start[byte] = '\0';
     encode_utf8((u8*)str->val.start, value);
+    
+    str->val.start[byte] = '\0';
     objstring_hash(str);
     
     return OBJ_TO_VALUE(str);
@@ -1228,18 +1232,18 @@ static u32 calculate_range(VM* vm, ObjRange* range, u32* count_ptr, int* step_pt
     }
 
     *step_ptr = range->step;
-    ASSERT((from < to && range->step < 0) || (from >= to && range->step > 0), "range step is opposite to its direction.");
-    *count_ptr = floor((double)(to - 1 - from) / abs(range->step) + 1) + 1; // 索引的元素数量
+    ASSERT((from < to && range->step > 0) || (from >= to && range->step < 0), "range step is opposite to its direction.");
+    *count_ptr = floor((double)(to - 1 - from) / abs(range->step) + 1); // 索引的元素数量
 
     return from;
 }
 
 static ObjString* objstring_from_sub(VM* vm, ObjString* src_str, int start, u32 count, int step) {
     u8* src = (u8*)src_str->val.start;
-    
+    // FIXME: 没有处理截断utf8字符的问题。
     u32 total_len = 0;
     for (int i = 0; i < count; i++) {
-        total_len += get_byte_of_decode_utf8(src[start + i * step]);
+        total_len += get_byte_of_decode_utf8_from_start(src[start + i * step]);
     }
 
     ObjString* res = ALLOCATE_EXTRA(vm, ObjString, total_len + 1);
@@ -1666,6 +1670,8 @@ static bool validate_key(VM* vm, Value arg) {
         || VALUE_IS_STRING(arg)
         || VALUE_IS_RANGE(arg)
         || VALUE_IS_CLASS(arg)
+        || VALUE_IS_U32(arg)
+        || VALUE_IS_U8(arg)
     ) {
         return true;
     }
@@ -2137,6 +2143,54 @@ def_prim(u8_to_printable) {
     ROBJ(objstring_new(vm, buf, len));
 }
 
+def_prim(u8_eq) {
+    if (args[1].type != VT_U8) {
+        SET_ERROR_FALSE(vm, "u8.==(val: u8) -> bool;\n");
+    }
+
+    RBOOL(args[0].u8val == args[1].u8val);
+}
+
+def_prim(u8_ne) {
+    if (args[1].type != VT_U8) {
+        SET_ERROR_FALSE(vm, "u8.!=(val: u8) -> bool;\n");
+    }
+
+    RBOOL(args[0].u8val != args[1].u8val);
+}
+
+def_prim(u8_gt) {
+    if (args[1].type != VT_U8) {
+        SET_ERROR_FALSE(vm, "u8.>(val: u8) -> bool;\n");
+    }
+
+    RBOOL(args[0].u8val > args[1].u8val);
+}
+
+def_prim(u8_ge) {
+    if (args[1].type != VT_U8) {
+        SET_ERROR_FALSE(vm, "u8.>=(val: u8) -> bool;\n");
+    }
+
+    RBOOL(args[0].u8val >= args[1].u8val);
+}
+
+def_prim(u8_lt) {
+    if (args[1].type != VT_U8) {
+        SET_ERROR_FALSE(vm, "u8.<(val: u8) -> bool;\n");
+    }
+
+    RBOOL(args[0].u8val < args[1].u8val);
+}
+
+def_prim(u8_le) {
+    if (args[1].type != VT_U8) {
+        SET_ERROR_FALSE(vm, "u8.<=(val: u8) -> bool;\n");
+    }
+
+    RBOOL(args[0].u8val <= args[1].u8val);
+}
+
 static ObjMap* DyLib_all_opened_lib = NULL;
 static ObjString* DyLib_native_pointer_classifier = NULL;
 
@@ -2384,6 +2438,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->i32_class, "-", prim_name(i32_neg));
     BIND_PRIM_METHOD(vm->i32_class, "to_string()", prim_name(i32_to_string));
     BIND_PRIM_METHOD(vm->i32_class, "..(_)", prim_name(i32_range));
+    BIND_PRIM_METHOD(vm->i32_class->header.class, "from_string(_)", prim_name(i32_from_string));
 
     vm->u32_class = VALUE_TO_CLASS(get_core_class_value(core_module, "u32"));
     BIND_PRIM_METHOD(vm->u32_class, "+(_)", prim_name(u32_add));
@@ -2409,6 +2464,12 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->u8_class, "to_string()", prim_name(u8_to_string));
     BIND_PRIM_METHOD(vm->u8_class, "to_char()", prim_name(u8_to_char));
     BIND_PRIM_METHOD(vm->u8_class, "to_printable()", prim_name(u8_to_printable));
+    BIND_PRIM_METHOD(vm->u8_class, "==(_)", prim_name(u8_eq));
+    BIND_PRIM_METHOD(vm->u8_class, "!=(_)", prim_name(u8_ne));
+    BIND_PRIM_METHOD(vm->u8_class, ">(_)", prim_name(u8_gt));
+    BIND_PRIM_METHOD(vm->u8_class, ">=(_)", prim_name(u8_ge));
+    BIND_PRIM_METHOD(vm->u8_class, "<(_)", prim_name(u8_lt));
+    BIND_PRIM_METHOD(vm->u8_class, "<=(_)", prim_name(u8_le));
 
     vm->f64_class = VALUE_TO_CLASS(get_core_class_value(core_module, "f64"));
     BIND_PRIM_METHOD(vm->f64_class, "+(_)", prim_name(f64_add));
@@ -2424,6 +2485,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->f64_class, "!=(_)", prim_name(f64_ne));
     BIND_PRIM_METHOD(vm->f64_class, "-", prim_name(f64_neg));
     BIND_PRIM_METHOD(vm->f64_class, "to_string()", prim_name(f64_to_string));
+    BIND_PRIM_METHOD(vm->f64_class->header.class, "from_string(_)", prim_name(f64_from_string));
     
     vm->string_class = VALUE_TO_CLASS(get_core_class_value(core_module, "String"));
     BIND_PRIM_METHOD(vm->string_class, "+(_)", prim_name(String_add));
@@ -2441,6 +2503,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->string_class, "iterate_byte(_)", prim_name(String_iterate_byte));
     BIND_PRIM_METHOD(vm->string_class, "to_string()", prim_name(String_to_string));
     BIND_PRIM_METHOD(vm->string_class, "len", prim_name(String_byte_count));
+    BIND_PRIM_METHOD(vm->string_class->header.class, "from_code_point(_)", prim_name(String_from_code_point));
     
     vm->list_class = VALUE_TO_CLASS(get_core_class_value(core_module, "List"));
     // static

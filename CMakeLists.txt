@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.31.2)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_definitions(-DDEBUG_ASSERT_ON -g)
+add_definitions(-DDEBUG_ASSERT_ON -g -O3)
 
 project(spr C)
 

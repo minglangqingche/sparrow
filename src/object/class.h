@@ -39,6 +39,7 @@
 #define VALUE_IS_BOOL(v)        (VALUE_IS_TRUE(v) || VALUE_IS_FALSE(v))
 #define VALUE_IS_I32(v)         (v.type == VT_I32)
 #define VALUE_IS_U32(v)         (v.type == VT_U32)
+#define VALUE_IS_U8(v)          (v.type == VT_U8)
 #define VALUE_IS_F64(v)         (v.type == VT_F64)
 #define VALUE_IS_NULL(v)        (v.type == VT_NULL)
 #define VALUE_IS_NUM(v)         (VALUE_IS_I32(v) || VALUE_IS_F64(v) || VALUE_IS_U32(v))

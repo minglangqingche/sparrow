@@ -371,6 +371,8 @@ static void closure_expr(CompileUnit* cu, bool can_assign);
 
 SymbolBindRule Rules[]      = {
     [TOKEN_UNKNOWN]         = UNUSED_RULE,
+    [TOKEN_U8]              = PREFIX_SYMBOL(literal),
+    [TOKEN_U32]             = PREFIX_SYMBOL(literal),
     [TOKEN_I32]             = PREFIX_SYMBOL(literal),
     [TOKEN_F64]             = PREFIX_SYMBOL(literal),
     [TOKEN_STRING]          = PREFIX_SYMBOL(literal),
