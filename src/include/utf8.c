@@ -19,24 +19,47 @@ u32 get_byte_of_utf8_char(Char_utf8 val) {
     return 0;
 }
 
-u32 get_byte_of_decode_utf8(u8 val) {
-    if ((val & 0xC0) == 0x80) {
+u32 get_byte_of_decode_utf8(int codepoint) {
+    // 校验码点合法性
+    if (codepoint < 0 || codepoint > 0x10FFFF) {
+        return 0; // 超出Unicode编码范围（0x0000 ~ 0x10FFFF）
+    }
+    // 排除代理区码点（UTF-16专用，不允许直接在UTF-8中使用）
+    if (codepoint >= 0xD800 && codepoint <= 0xDFFF) {
         return 0;
     }
+    
+    // 根据码点范围判断UTF-8字节数
+    if (codepoint <= 0x007F) {
+        return 1; // 1字节：0x0000 ~ 0x007F
+    } else if (codepoint <= 0x07FF) {
+        return 2; // 2字节：0x0080 ~ 0x07FF
+    } else if (codepoint <= 0xFFFF) {
+        return 3; // 3字节：0x0800 ~ 0xFFFF
+    } else {
+        return 4; // 4字节：0x10000 ~ 0x10FFFF
+    }
+    return 0;
+}
 
+// 通过utf8码点起始字节判断码点长度
+u32 get_byte_of_decode_utf8_from_start(u8 val) {
+    // 先判断多字节起始字节（从长到短）
     if ((val & 0xF8) == 0xF0) {
-        return 4;
+        return 4; // 4字节起始字节
     }
-
     if ((val & 0xF0) == 0xE0) {
-        return 3;
+        return 3; // 3字节起始字节
     }
-
     if ((val & 0xE0) == 0xC0) {
-        return 2;
+        return 2; // 2字节起始字节
     }
-
-    return 1;
+    // 单字节起始字节
+    if ((val & 0x80) == 0x00) {
+        return 1;
+    }
+    // 若为后续字节（0x80~0xBF），返回错误标识（如0）
+    return 0;
 }
 
 u8 encode_utf8(u8* buf, Char_utf8 val) {

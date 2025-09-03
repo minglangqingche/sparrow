@@ -1203,8 +1203,9 @@ static Value make_string_from_code_point(VM* vm, int value) {
 
     objheader_init(vm, &str->header, OT_STRING, vm->string_class);
     str->val.len = byte;
-    str->val.start[byte] = '\0';
     encode_utf8((u8*)str->val.start, value);
+    
+    str->val.start[byte] = '\0';
     objstring_hash(str);
     
     return OBJ_TO_VALUE(str);
@@ -1239,10 +1240,10 @@ static u32 calculate_range(VM* vm, ObjRange* range, u32* count_ptr, int* step_pt
 
 static ObjString* objstring_from_sub(VM* vm, ObjString* src_str, int start, u32 count, int step) {
     u8* src = (u8*)src_str->val.start;
-    
+    // FIXME: 没有处理截断utf8字符的问题。
     u32 total_len = 0;
     for (int i = 0; i < count; i++) {
-        total_len += get_byte_of_decode_utf8(src[start + i * step]);
+        total_len += get_byte_of_decode_utf8_from_start(src[start + i * step]);
     }
 
     ObjString* res = ALLOCATE_EXTRA(vm, ObjString, total_len + 1);
@@ -2502,6 +2503,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->string_class, "iterate_byte(_)", prim_name(String_iterate_byte));
     BIND_PRIM_METHOD(vm->string_class, "to_string()", prim_name(String_to_string));
     BIND_PRIM_METHOD(vm->string_class, "len", prim_name(String_byte_count));
+    BIND_PRIM_METHOD(vm->string_class->header.class, "from_code_point(_)", prim_name(String_from_code_point));
     
     vm->list_class = VALUE_TO_CLASS(get_core_class_value(core_module, "List"));
     // static
