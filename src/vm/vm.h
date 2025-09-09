@@ -42,6 +42,7 @@ struct _VM {
     Parser* cur_parser;
 
     BufferType(Value) allways_keep_roots; // 长久持有的对象根，从添加开始直到vm_free才自动释放
+    BufferType(Value) ast_obj_root; // ast中持有的对象
     ObjHeader* tmp_roots[MAX_TEMP_ROOTS_NUM];
     u32 tmp_roots_num;
     Gray grays;

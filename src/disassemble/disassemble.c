@@ -1,11 +1,10 @@
 #include "disassemble.h"
-#include "class.h"
-#include "compiler.h"
 #include "header_obj.h"
 #include "meta_obj.h"
 #include "obj_fn.h"
 #include "obj_range.h"
 #include "vm.h"
+#include "compiler.h"
 #include <stdio.h>
 
 #define OPCODE_SLOTS(op, slot) [OPCODE_##op] = #op,

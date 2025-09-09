@@ -9,7 +9,6 @@
 #include "obj_map.h"
 #include "obj_native_pointer.h"
 #include "obj_range.h"
-#include "obj_string.h"
 #include "obj_thread.h"
 #include "utils.h"
 #include "vm.h"
@@ -326,6 +325,7 @@ void start_gc(VM* vm) {
     }
 
     gray_buffer(vm, &vm->allways_keep_roots);
+    gray_buffer(vm, &vm->ast_obj_root);
 
     black_obj_in_gray(vm);
 

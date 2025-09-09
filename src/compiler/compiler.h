@@ -1,8 +1,7 @@
-#ifndef __COMPILER_COMPILER_H__
-#define __COMPILER_COMPILER_H__
+#ifndef __COMPILER_H__
+#define __COMPILER_H__
 
 #include "obj_fn.h"
-#include "obj_string.h"
 #include "utils.h"
 
 #define MAX_LOCAL_VAR_NUM   128
@@ -76,8 +75,6 @@ typedef struct _CompileUnit {
     Parser* parser;
 } CompileUnit;
 
-int define_module_var(VM* vm, ObjModule* module, const char* name, u32 len, Value val);
-ObjFn* compile_module(VM* vm, ObjModule* module, const char* module_code);
 u32 get_byte_of_operands(Byte* instr_stream, Value* constants, int ip);
 int ensure_symbol_exist(VM* vm, SymbolTable* table, const char* symbol, u32 len);
 

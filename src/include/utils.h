@@ -7,18 +7,23 @@
 
 void* mem_manager(VM* vm, void* ptr, u32 old_size, u32 new_size);
 
+// 创建带有扩展数组的结构，内存计数增加
 #define ALLOCATE(vm_ptr, type) \
     (type*)mem_manager(vm_ptr, NULL, 0, sizeof(type))
 
+// 创建带有扩展数组的结构，内存计数增加
 #define ALLOCATE_EXTRA(vm_ptr, main_type, extra_size) \
     (main_type*)mem_manager(vm_ptr, NULL, 0, sizeof(main_type) + extra_size)
 
+// 创建数组，内存计数增加
 #define ALLOCATE_ARRAY(vm_ptr, type, count) \
     (type*)mem_manager(vm_ptr, NULL, 0, sizeof(type) * count)
 
+// 销毁数组，内存计数减少
 #define DEALLOCATE_ARRAY(vm_ptr, array_ptr, count) \
     mem_manager(vm_ptr, array_ptr, sizeof(array_ptr[0]) * count, 0)
 
+// free，内存计数不变
 #define DEALLOCATE(vm_ptr, mem_ptr) \
     mem_manager(vm_ptr, mem_ptr, 0, 0)
 

@@ -10,7 +10,6 @@
 #include "meta_obj.h"
 #include "obj_fn.h"
 #include "obj_map.h"
-#include "obj_string.h"
 #include "obj_thread.h"
 #include "utils.h"
 
@@ -37,6 +36,7 @@ void vm_init(VM* vm) {
     vm->all_module = objmap_new(vm);
 
     BufferInit(Value, &vm->allways_keep_roots);
+    BufferInit(Value, &vm->ast_obj_root);
     vm->config = (Configuration) {
         .heap_growth_factor = 1.5,
         .min_heap_size      = 1024 * 1024,      // 最小堆大小为1mb
@@ -75,6 +75,7 @@ void vm_free(VM* vm) {
     vm->grays.gray_objs = DEALLOCATE(vm, vm->grays.gray_objs);
     BufferClear(String, &vm->all_method_names, vm);
     BufferClear(Value, &vm->allways_keep_roots, vm);
+    BufferClear(Value, &vm->ast_obj_root, vm);
     DEALLOCATE(vm, vm);
 }
 
