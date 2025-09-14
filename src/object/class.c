@@ -49,7 +49,9 @@ bool value_is_equal(Value a, Value b) {
     if (a.header->type == OT_STRING) {
         ObjString* str_a = VALUE_TO_STRING(a);
         ObjString* str_b = VALUE_TO_STRING(b);
-        return (str_a->val.len == str_b->val.len) && (memcmp(str_a->val.start, str_b->val.start, str_a->val.len) == 0);
+        return (str_a->val.len == str_b->val.len)
+            && (str_a->hash_code == str_b->hash_code)
+            && (memcmp(str_a->val.start, str_b->val.start, str_a->val.len) == 0);
     }
 
     if (a.header->type == OT_RANGE) {
@@ -97,6 +99,9 @@ inline Class* get_class_of_object(VM* vm, Value object) {
             return vm->null_class;
         case VT_OBJ:
             return VALUE_TO_OBJ(object)->class;
+        case VT_UNDEFINED:
+            RUNTIME_ERROR("get class of UNDEFINED value.");
+            return NULL;
         default:
             UNREACHABLE();
     }

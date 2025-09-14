@@ -8,7 +8,6 @@
 #include <sys/stat.h>
 #include "class.h"
 #include "common.h"
-#include "compiler.h"
 #include "gc.h"
 #include "header_obj.h"
 #include "meta_obj.h"
@@ -27,6 +26,17 @@
 #include <time.h>
 #include <unistd.h>
 #include "disassemble.h"
+#include "ast.h"
+
+#include "compiler.h"
+
+#if defined(USE_AST_COMPILER)
+    #include "ast_compiler.h"
+#elif defined(USE_ONE_PASS_COMPILER)
+    #include "one_pass_compiler.h"
+#else
+    #include "one_pass_compiler.h"
+#endif
 
 #include "core.script.inc"
 
@@ -125,7 +135,13 @@ static ObjThread* load_module(VM* vm, Value module_name, const char* module_code
         }
     }
 
-    ObjFn* fn = compile_module(vm, module, module_code);
+#if defined(USE_AST_COMPILER)
+    ObjFn* fn = compile_module(vm, module, module_code, ast_compile_program);
+#elif defined (USE_ONE_PASS_COMPILER)
+    ObjFn* fn = compile_module(vm, module, module_code, one_pass_compile_program);
+#else
+    ObjFn* fn = compile_module(vm, module, module_code, one_pass_compile_program);
+#endif
     push_tmp_root(vm, (ObjHeader*)fn);
 
 #ifdef DIS_ASM_CHUNK
@@ -295,6 +311,24 @@ def_prim(Class_to_string) {
     char buf[MAX_ID_LEN] = {'\0'};
     sprintf(buf, "<Class %s>", name->val.start);
     ROBJ(objstring_new(vm, buf, strlen(buf)));
+}
+
+def_prim(Class_get_static_method) {
+    if (!VALUE_IS_STRING(args[1])) {
+        SET_ERROR_FALSE(vm, "Class.get_static_method(String) -> Fn?;");
+    }
+    
+    int index = get_index_from_symbol_table(&vm->all_method_names, VALUE_TO_OBJSTR(args[1])->val.start, VALUE_TO_OBJSTR(args[1])->val.len);
+    if (index == -1 || index >= VALUE_TO_CLASS(args[0])->header.class->methods.count) {
+        RNULL();
+    }
+
+    Method m = VALUE_TO_CLASS(args[0])->header.class->methods.datas[index];
+    if (m.type != MT_SCRIPT) {
+        RNULL();
+    }
+
+    ROBJ(m.obj);
 }
 
 // Object::same(o1: Object, o2: Object) -> bool;
@@ -1904,12 +1938,12 @@ def_prim(Range_new_arg1) {
     ROBJ(objrange_new(vm, from, args[1].i32val, step));
 }
 
-inline static char* get_file_path(const char* module_name, int mode) {
+inline static char* get_file_path(const char* module_name, enum ImportRootType mode) {
     u32 root_dir_len = -1;
     const char* root_path = NULL;
     
     // mode 决定路径的前缀
-    if (mode == 0) {
+    if (mode == DEFAULT_ROOT) {
         // 默认根，先查找SPR_HOME，若没有设置，再按root_dir查找
         root_path = getenv("SPR_HOME");
         if (root_path != NULL) {
@@ -1918,10 +1952,10 @@ inline static char* get_file_path(const char* module_name, int mode) {
             root_dir_len = root_dir == NULL ? 0 : strlen(root_dir);
             root_path = root_dir;
         }
-    } else if (mode == 1) {
+    } else if (mode == STD_ROOT) {
         root_path = getenv("SPR_STD_LIB_PATH")?: getenv("HOME");
         root_dir_len = strlen(root_path);
-    } else if (mode == 2) {
+    } else if (mode == LIB_ROOT) {
         root_path = getenv("SPR_LIB_PATH")?: getenv("HOME");
         root_dir_len = strlen(root_path);
     }
@@ -1936,17 +1970,17 @@ inline static char* get_file_path(const char* module_name, int mode) {
     }
     
     if (root_path != NULL) {
-        memmove(path, root_path, root_dir_len);
+        memcpy(path, root_path, root_dir_len);
     }
 
-    memmove(path + root_dir_len, module_name, name_len);
-    memmove(path + root_dir_len + name_len, SCRIPT_EXTENSION, extension_len);
+    memcpy(path + root_dir_len, module_name, name_len);
+    memcpy(path + root_dir_len + name_len, SCRIPT_EXTENSION, extension_len);
     path[path_len] = '\0';
 
     return path;
 }
 
-inline static char* read_module(const char* module_name, int mode) {
+inline static char* read_module(const char* module_name, enum ImportRootType mode) {
     char* module_path = get_file_path(module_name, mode);
     char* module_code = read_file(module_path);
     free(module_path);
@@ -1958,7 +1992,7 @@ inline static void print_str(const char* str) {
     fflush(stdout);
 }
 
-static Value import_module(VM* vm, Value module_name, int mode) {
+static Value import_module(VM* vm, Value module_name, enum ImportRootType mode) {
     // mode: 0. root_dir, 1. std, 2. lib
     if (!VALUE_IS_UNDEFINED(objmap_get(vm->all_module, module_name))) {
         return VT_TO_VALUE(VT_NULL);
@@ -2025,7 +2059,7 @@ def_prim(System_get_time) {
     RF64((double)now.tv_sec * 1000.0 + (double)now.tv_nsec / 1000000.0);
 }
 
-inline static bool import_module_core(VM* vm, Value* args, int mode) {
+inline static bool import_module_core(VM* vm, Value* args, enum ImportRootType mode) {
     if (!validate_str(vm, args[1])) {
         return false; // error
     }
@@ -2044,15 +2078,15 @@ inline static bool import_module_core(VM* vm, Value* args, int mode) {
 }
 
 def_prim(System_import_module) {
-    return import_module_core(vm, args, 0);
+    return import_module_core(vm, args, DEFAULT_ROOT);
 }
 
 def_prim(System_import_std_module) {
-    return import_module_core(vm, args, 1);
+    return import_module_core(vm, args, STD_ROOT);
 }
 
 def_prim(System_import_lib_module) {
-    return import_module_core(vm, args, 2);
+    return import_module_core(vm, args, LIB_ROOT);
 }
 
 def_prim(System_get_module_variable) {
@@ -2361,6 +2395,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->class_of_class, "name", prim_name(Class_name));
     BIND_PRIM_METHOD(vm->class_of_class, "super_type()", prim_name(Class_super_type));
     BIND_PRIM_METHOD(vm->class_of_class, "to_string()", prim_name(Class_to_string));
+    BIND_PRIM_METHOD(vm->class_of_class, "get_static_method(_)", prim_name(Class_get_static_method));
 
     Class* object_meta_class = define_class(vm, core_module, "Object@Meta");
     bind_super_class(vm, object_meta_class, vm->class_of_class);

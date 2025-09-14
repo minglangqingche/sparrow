@@ -504,7 +504,7 @@ inline void consume_next_token(Parser* parser, TokenType expected, const char* m
     consume_cur_token(parser, expected, msg);
 }
 
-void init_parser(VM* vm, Parser* parser, const char* file, const char* src, ObjModule* module) {
+void init_parser(VM* vm, Parser* parser, const char* file, const char* src) {
     parser->file = file;
     parser->src = src;
     parser->cur_char = *parser->src;
@@ -518,5 +518,4 @@ void init_parser(VM* vm, Parser* parser, const char* file, const char* src, ObjM
     parser->pre_token = parser->cur_token;
     parser->interpolation_rp_trace = 0;
     parser->vm = vm;
-    parser->cur_module = module;
 }

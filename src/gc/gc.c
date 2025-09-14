@@ -9,7 +9,6 @@
 #include "obj_map.h"
 #include "obj_native_pointer.h"
 #include "obj_range.h"
-#include "obj_string.h"
 #include "obj_thread.h"
 #include "utils.h"
 #include "vm.h"
@@ -290,10 +289,7 @@ void free_obj(VM* vm, ObjHeader* header) {
 #endif
 }
 
-void gray_compile_unit(VM* vm, CompileUnit* cu) {
-    gray_value(vm, vm->cur_parser->cur_token.value);
-    gray_value(vm, vm->cur_parser->pre_token.value);
-
+void gray_compile_unit(VM* vm, CompileUnitPubStruct* cu) {
     //向上遍历父编译器外层链 使其fn可到达
     //编译结束后,vm->curParser会在endCompileUnit中置为NULL,
     //本函数是在编译过程中调用的,即vm->curParser肯定不为NULL,
@@ -321,11 +317,16 @@ void start_gc(VM* vm) {
     gray_obj(vm, (ObjHeader*)vm->cur_thread);
 
     if (vm->cur_parser != NULL) {
-        ASSERT(vm->cur_parser->cur_compile_unit != NULL, "gray CompileUnit only be called while compiling.");
-        gray_compile_unit(vm, vm->cur_parser->cur_compile_unit);
+        gray_value(vm, vm->cur_parser->cur_token.value);
+        gray_value(vm, vm->cur_parser->pre_token.value);
+    }
+
+    if (vm->cur_cu != NULL) {
+        gray_compile_unit(vm, vm->cur_cu);
     }
 
     gray_buffer(vm, &vm->allways_keep_roots);
+    gray_buffer(vm, &vm->ast_obj_root);
 
     black_obj_in_gray(vm);
 

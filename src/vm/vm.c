@@ -10,7 +10,6 @@
 #include "meta_obj.h"
 #include "obj_fn.h"
 #include "obj_map.h"
-#include "obj_string.h"
 #include "obj_thread.h"
 #include "utils.h"
 
@@ -37,6 +36,7 @@ void vm_init(VM* vm) {
     vm->all_module = objmap_new(vm);
 
     BufferInit(Value, &vm->allways_keep_roots);
+    BufferInit(Value, &vm->ast_obj_root);
     vm->config = (Configuration) {
         .heap_growth_factor = 1.5,
         .min_heap_size      = 1024 * 1024,      // 最小堆大小为1mb
@@ -75,6 +75,7 @@ void vm_free(VM* vm) {
     vm->grays.gray_objs = DEALLOCATE(vm, vm->grays.gray_objs);
     BufferClear(String, &vm->all_method_names, vm);
     BufferClear(Value, &vm->allways_keep_roots, vm);
+    BufferClear(Value, &vm->ast_obj_root, vm);
     DEALLOCATE(vm, vm);
 }
 
@@ -84,6 +85,9 @@ void ensure_stack(VM* vm, ObjThread* thread, u32 neede_slots) {
     }
 
     u32 new_stack_capacity = ceil_to_power_of_2(neede_slots);
+    if (new_stack_capacity <= thread->stack_capacity) {
+        printf(">>> (%d) %d - %d\n", neede_slots, new_stack_capacity, thread->stack_capacity);
+    }
     ASSERT(new_stack_capacity > thread->stack_capacity, "new stack capacity error.");
 
     Value* old_stack_buttom = thread->stack;
@@ -411,7 +415,7 @@ VMResult execute_instruction(VM* vm, register ObjThread* cur_thread) {
             if ((u32)index > class->methods.count || (method = &class->methods.datas[index])->type == MT_NONE) {
                 RUNTIME_ERROR(
                     "method '%s.%s' not found.",
-                    class->name->val.start, vm->all_method_names.datas[index]
+                    class->name->val.start, vm->all_method_names.datas[index].str
                 );
             }
 

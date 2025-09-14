@@ -1,11 +1,10 @@
 #include "disassemble.h"
-#include "class.h"
-#include "compiler.h"
 #include "header_obj.h"
 #include "meta_obj.h"
 #include "obj_fn.h"
 #include "obj_range.h"
 #include "vm.h"
+#include "compiler.h"
 #include <stdio.h>
 
 #define OPCODE_SLOTS(op, slot) [OPCODE_##op] = #op,
@@ -130,7 +129,7 @@ void dis_asm(VM* vm, ObjModule* module, ObjFn* chunk) {
             for (int i = 0; i < operand_byte - 2; i += 2) {
                 int operand1 = chunk->instr_stream.datas[ip++];
                 int operand2 = chunk->instr_stream.datas[ip++];
-                printf("<%-10d %-10d>", operand1, operand2);
+                printf("<%3d, %3d>", operand1, operand2);
             }
         } else if (operand_byte == 1) {
             ip += operand_byte;

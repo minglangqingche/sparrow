@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.31.2)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_definitions(-DDEBUG_ASSERT_ON -g -O3)
+# debug时为了避免优化对代码结构的改变，使用无优化版本 -O0
+# 实测发现 -O2 和 -O3 都不能使代码通过测试，使用 -O1 可以通过测试
+add_definitions(-g -O1)
 
 project(spr C)
 
@@ -18,10 +20,11 @@ aux_source_directory(${SRC}/parser      PARSER_CODE)
 aux_source_directory(${SRC}/vm          VM_CODE)
 aux_source_directory(${SRC}/disassemble DIS_ASM_CODE)
 aux_source_directory(${SRC}/gc          GC_CODE)
+aux_source_directory(${SRC}/ast         AST_CODE)
 
 aux_source_directory(${DEV}             DEV_CODE)
 
-set(ALL_CODE ${COMPILER_CODE} ${SRC_CODE} ${GC_CODE} ${INCLUDE_CODE} ${VM_CODE} ${PARSER_CODE} ${OBJ_CODE} ${CLI_CODE} ${DIS_ASM_CODE} ${DEV_CODE})
+set(ALL_CODE ${COMPILER_CODE} ${SRC_CODE} ${GC_CODE} ${INCLUDE_CODE} ${VM_CODE} ${PARSER_CODE} ${OBJ_CODE} ${CLI_CODE} ${DIS_ASM_CODE} ${DEV_CODE} ${AST_CODE})
 
 include_directories(
     ${SRC}/cli
@@ -32,7 +35,7 @@ include_directories(
     ${SRC}/vm
     ${SRC}/gc
     ${SRC}/disassemble
-
+    ${SRC}/ast
     ${DEV}
 )
 
