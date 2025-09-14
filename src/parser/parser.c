@@ -203,6 +203,9 @@ static void parse_string(Parser* parser) {
                 case 'u':
                     parse_unicode_code_point(parser, &str);
                     break;
+                case '%':
+                    BufferAdd(Byte, &str, parser->vm, '%');
+                    break;
                 
                 default:
                     LEX_ERROR(parser, "unsupport escape \\%c", parser->cur_char);
@@ -432,17 +435,24 @@ void get_next_token(Parser* parser) {
                 parser->cur_token.type = TOKEN_RP;
                 break;
             CASE_NEXT('.', '.', DOT, DOTDOT)
-            CASE('+', ADD) CASE('-', SUB) CASE('*', MUL) CASE('%', MOD)
+            CASE_NEXT('+', '=', ADD, ADD_ASSIGN)
+            CASE_NEXT('-', '=', SUB, SUB_ASSIGN)
+            CASE_NEXT('*', '=', MUL, MUL_ASSIGN)
+            CASE_NEXT('%', '=', MOD, MOD_ASSIGN)
             case '/':
                 if (match_next_char(parser, '/') || match_next_char(parser, '*')) {
                     skip_comment(parser);
                     parser->cur_token.start = parser->next_char - 1;
                     continue;
+                }else if (match_next_char(parser, '=')) {
+                    parser->cur_token.type = TOKEN_DIV_ASSIGN;
+                } else {
+                    parser->cur_token.type = TOKEN_DIV;
                 }
-                parser->cur_token.type = TOKEN_DIV;
                 break;
-            CASE_NEXT('&', '&', BIT_AND, LOGICAL_AND)
-            CASE_NEXT('|', '|', BIT_OR, LOGICAL_OR)
+            CASE_2NEXT('&', '&', '=', BIT_AND, LOGICAL_AND, BIT_AND_ASSIGN)
+            CASE_2NEXT('|', '|', '=', BIT_OR, LOGICAL_OR, BIT_OR_ASSIGN)
+            CASE_NEXT('^', '=', BIT_XOR, BIT_XOR_ASSIGN)
             CASE('~', BIT_NOT)
             CASE('?', QUESTION)
             CASE_NEXT('=', '=', ASSIGN, EQ)
