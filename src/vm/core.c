@@ -29,7 +29,14 @@
 #include "ast.h"
 
 #include "compiler.h"
-#include "one_pass_compiler.h"
+
+#if defined(USE_AST_COMPILER)
+    #include "ast_compiler.h"
+#elif defined(USE_ONE_PASS_COMPILER)
+    #include "one_pass_compiler.h"
+#else
+    #include "one_pass_compiler.h"
+#endif
 
 #include "core.script.inc"
 
@@ -124,11 +131,17 @@ static ObjThread* load_module(VM* vm, Value module_name, const char* module_code
         for (int i = 0; i < core->module_var_name.count; i++) {
             String name = core->module_var_name.datas[i];
             Value val = core->module_var_value.datas[i];
-            one_pass_define_module_var(vm, module, name.str, name.len, val);
+            define_module_var(vm, module, name.str, name.len, val);
         }
     }
 
-    ObjFn* fn = one_pass_compile_module(vm, module, module_code);
+#if defined(USE_AST_COMPILER)
+    ObjFn* fn = compile_module(vm, module, module_code, ast_compile_program);
+#elif defined (USE_ONE_PASS_COMPILER)
+    ObjFn* fn = compile_module(vm, module, module_code, one_pass_compile_program);
+#else
+    ObjFn* fn = compile_module(vm, module, module_code, one_pass_compile_program);
+#endif
     push_tmp_root(vm, (ObjHeader*)fn);
 
 #ifdef DIS_ASM_CHUNK
@@ -182,7 +195,7 @@ int add_symbol(VM* vm, SymbolTable* table, const char* symbol, u32 len) {
 static Class* define_class(VM* vm, ObjModule* module, const char* name) {
     // 创建裸类并作为普通模块变量在模块中定义
     Class* class = class_new_raw(vm, name, 0);
-    one_pass_define_module_var(vm, module, name, strlen(name), OBJ_TO_VALUE(class));
+    define_module_var(vm, module, name, strlen(name), OBJ_TO_VALUE(class));
     return class;
 }
 
@@ -298,6 +311,24 @@ def_prim(Class_to_string) {
     char buf[MAX_ID_LEN] = {'\0'};
     sprintf(buf, "<Class %s>", name->val.start);
     ROBJ(objstring_new(vm, buf, strlen(buf)));
+}
+
+def_prim(Class_get_static_method) {
+    if (!VALUE_IS_STRING(args[1])) {
+        SET_ERROR_FALSE(vm, "Class.get_static_method(String) -> Fn?;");
+    }
+    
+    int index = get_index_from_symbol_table(&vm->all_method_names, VALUE_TO_OBJSTR(args[1])->val.start, VALUE_TO_OBJSTR(args[1])->val.len);
+    if (index == -1 || index >= VALUE_TO_CLASS(args[0])->header.class->methods.count) {
+        RNULL();
+    }
+
+    Method m = VALUE_TO_CLASS(args[0])->header.class->methods.datas[index];
+    if (m.type != MT_SCRIPT) {
+        RNULL();
+    }
+
+    ROBJ(m.obj);
 }
 
 // Object::same(o1: Object, o2: Object) -> bool;
@@ -1939,11 +1970,11 @@ inline static char* get_file_path(const char* module_name, enum ImportRootType m
     }
     
     if (root_path != NULL) {
-        memmove(path, root_path, root_dir_len);
+        memcpy(path, root_path, root_dir_len);
     }
 
-    memmove(path + root_dir_len, module_name, name_len);
-    memmove(path + root_dir_len + name_len, SCRIPT_EXTENSION, extension_len);
+    memcpy(path + root_dir_len, module_name, name_len);
+    memcpy(path + root_dir_len + name_len, SCRIPT_EXTENSION, extension_len);
     path[path_len] = '\0';
 
     return path;
@@ -2364,6 +2395,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->class_of_class, "name", prim_name(Class_name));
     BIND_PRIM_METHOD(vm->class_of_class, "super_type()", prim_name(Class_super_type));
     BIND_PRIM_METHOD(vm->class_of_class, "to_string()", prim_name(Class_to_string));
+    BIND_PRIM_METHOD(vm->class_of_class, "get_static_method(_)", prim_name(Class_get_static_method));
 
     Class* object_meta_class = define_class(vm, core_module, "Object@Meta");
     bind_super_class(vm, object_meta_class, vm->class_of_class);

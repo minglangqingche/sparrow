@@ -85,6 +85,9 @@ void ensure_stack(VM* vm, ObjThread* thread, u32 neede_slots) {
     }
 
     u32 new_stack_capacity = ceil_to_power_of_2(neede_slots);
+    if (new_stack_capacity <= thread->stack_capacity) {
+        printf(">>> (%d) %d - %d\n", neede_slots, new_stack_capacity, thread->stack_capacity);
+    }
     ASSERT(new_stack_capacity > thread->stack_capacity, "new stack capacity error.");
 
     Value* old_stack_buttom = thread->stack;
@@ -412,7 +415,7 @@ VMResult execute_instruction(VM* vm, register ObjThread* cur_thread) {
             if ((u32)index > class->methods.count || (method = &class->methods.datas[index])->type == MT_NONE) {
                 RUNTIME_ERROR(
                     "method '%s.%s' not found.",
-                    class->name->val.start, vm->all_method_names.datas[index]
+                    class->name->val.start, vm->all_method_names.datas[index].str
                 );
             }
 

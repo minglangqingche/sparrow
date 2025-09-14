@@ -2,18 +2,13 @@
 #define __VM_VM_H__
 
 #include "common.h"
+#include "compiler.h"
 #include "header_obj.h"
 #include "obj_map.h"
 #include "utils.h"
 #include "obj_thread.h"
 
 #define MAX_TEMP_ROOTS_NUM 8
-
-#define OPCODE_SLOTS(opcode, effect) OPCODE_##opcode,
-typedef enum {
-    #include "opcode.inc"
-} OpCode;
-#undef OPCODE_SLOTS
 
 typedef enum {
     VM_RES_SUCCESS,
@@ -40,6 +35,7 @@ struct _VM {
     ObjMap* all_module;
     ObjThread* cur_thread;
     Parser* cur_parser;
+    CompileUnitPubStruct* cur_cu;
 
     BufferType(Value) allways_keep_roots; // 长久持有的对象根，从添加开始直到vm_free才自动释放
     BufferType(Value) ast_obj_root; // ast中持有的对象

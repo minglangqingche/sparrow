@@ -87,8 +87,6 @@ struct _Parser {
     char cur_char;
     Token cur_token;
     Token pre_token;
-    ObjModule* cur_module;
-    CompileUnit* cur_compile_unit;
 
     int interpolation_rp_trace;
     
@@ -103,6 +101,6 @@ void get_next_token(Parser* parser);
 bool match_token(Parser* parser, TokenType expected);
 void consume_cur_token(Parser* parser, TokenType expected, const char* msg);
 void consume_next_token(Parser* parser, TokenType expected, const char* msg);
-void init_parser(VM* vm, Parser* parser, const char* file, const char* src, ObjModule* module);
+void init_parser(VM* vm, Parser* parser, const char* file, const char* src);
 
 #endif

@@ -22,6 +22,8 @@ typedef struct _Class Class;
 
 /**
  * 可选flag
+ *
+ * - debug-flag
  * DIS_ASM_CHUNK
  *   > 是否在编译模块完成后输出模块反汇编结果
  * DIS_ASM_CHUNK_WHEN_CALL
@@ -30,12 +32,22 @@ typedef struct _Class Class;
  *   > gc 时输出 gc 相关信息
  * DUMP_AST_WHEN_COMPILE_PROG
  *   > ast_compile_program 解析源码为 ast 完成后是否转储 ast
+ * 
+ * - compiler
+ * USE_AST_COMPILER: 使用基于 ast 的编译器，可以享受更多语法糖和更好的编译器优化。
+ * USE_ONE_PASS_COMPILER: 使用一遍解释器。解释器功能稳定，bug 很少，但是维护频率更低。
  *
  * DEBUG_ASSERT_ON
  *   > 应常开启。决定 ASSERT 是否启用。
  */
 
 #define DEBUG_ASSERT_ON
+
+#define USE_AST_COMPILER
+
+#ifndef USE_AST_COMPILER
+    #define USE_ONE_PASS_COMPILER
+#endif
 
 #ifndef __STDBOOL_H
     #include <stdbool.h>
