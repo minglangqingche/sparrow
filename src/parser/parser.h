@@ -68,6 +68,8 @@ typedef enum {
     // GETTER & SETTER
     TOKEN_GETTER, TOKEN_SETTER,
 
+    TOKEN_LOOP,
+
     // UN-PRINTABLE MARK
     TOKEN_EOF,
 } TokenType;

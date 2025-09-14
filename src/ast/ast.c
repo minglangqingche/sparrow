@@ -798,6 +798,15 @@ void compile_while_stmt(Parser* parser, AST_WhileStmt* res) {
     compile_block(parser, res->body);
 }
 
+void compile_loop_stmt(Parser* parser, AST_WhileStmt* res) {
+    res->condition = malloc(sizeof(AST_Expr));
+    res->condition->type = AST_LITERAL_TRUE;
+
+    res->body = malloc(sizeof(AST_Block));
+    consume_cur_token(parser, TOKEN_LC, "expect '{' for while body start.");
+    compile_block(parser, res->body);
+}
+
 void compile_for_stmt(Parser* parser, AST_Block* res) {
     consume_cur_token(parser, TOKEN_ID, "expect id for loop variable name.");
     
@@ -937,6 +946,9 @@ AST_Stmt* compile_stmt(Parser* parser) {
     } else if (match_token(parser, TOKEN_WHILE)) {
         res->type = AST_WHILE_STMT;
         compile_while_stmt(parser, &res->stmt.while_stmt);
+    } else if (match_token(parser, TOKEN_LOOP)) {
+        res->type = AST_WHILE_STMT;
+        compile_loop_stmt(parser, &res->stmt.while_stmt);
     } else if (match_token(parser, TOKEN_FOR)) {
         // for 在此处直接去糖
         res->type = AST_BLOCK;
