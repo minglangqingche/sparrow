@@ -891,6 +891,19 @@ def_prim(u32_bit_or) {
     }
 }
 
+def_prim(u32_bit_xor) {
+    switch (validate_num(vm, args[1])) {
+        case 1:
+            RU32(args[0].u32val ^ (u32)args[1].i32val);
+        case 2:
+            RU32(args[0].u32val ^ (u32)(args[1].f64val));
+        case 3:
+            RU32(args[0].u32val ^ args[1].u32val);
+        default:
+            return false; // 报错
+    }
+}
+
 def_prim(i32_bit_and) {
     switch (validate_num(vm, args[1])) {
         case 1:
@@ -2489,6 +2502,7 @@ void build_core(VM* vm) {
     BIND_PRIM_METHOD(vm->u32_class, "!=(_)", prim_name(u32_ne));
     BIND_PRIM_METHOD(vm->u32_class, "&(_)", prim_name(u32_bit_and));
     BIND_PRIM_METHOD(vm->u32_class, "|(_)", prim_name(u32_bit_or));
+    BIND_PRIM_METHOD(vm->u32_class, "^(_)", prim_name(u32_bit_xor));
     BIND_PRIM_METHOD(vm->u32_class, "<<(_)", prim_name(u32_bit_ls));
     BIND_PRIM_METHOD(vm->u32_class, ">>(_)", prim_name(u32_bit_rs));
     BIND_PRIM_METHOD(vm->u32_class, "~", prim_name(u32_bit_not));

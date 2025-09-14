@@ -23,11 +23,12 @@ typedef enum {
     BP_CONDITION,
     BP_LOGICAL_OR,
     BP_LOGICAL_AND,
-    BP_EQ,
     BP_IS,
-    BP_CMP,
     BP_BIT_OR,
+    BP_BIT_XOR,
     BP_BIT_AND,
+    BP_EQ,
+    BP_CMP,
     BP_BIT_SHIFT,
     BP_RANGE,
     BP_TERM,
@@ -335,6 +336,39 @@ AST_Expr* assign(Parser* parser, AST_Expr* l, bool can_assign) {
     return res;
 }
 
+#define COMPOUND_ASSIGNMENT_OPERATOR(func_name, op_str) \
+    AST_Expr* func_name##_assign(Parser* parser, AST_Expr* l, bool can_assign) { \
+        if (l->type != AST_ID_EXPR) { \
+            COMPILE_ERROR(parser, "the left operand of the infix operator '" op_str "=' must be an id."); \
+        } \
+        AST_Expr* res = malloc(sizeof(AST_Expr)); \
+        res->type = AST_ASSIGN_EXPR; \
+        AST_AssignExpr* assign = &res->expr.assign; \
+        assign->id = l->expr.id; \
+        assign->expr = ({ \
+            AST_Expr* infix_expr = malloc(sizeof(AST_Expr)); \
+            infix_expr->type = AST_INFIX_EXPR; \
+            infix_expr->expr.infix = (AST_InfixExpr) { \
+                .op = op_str, \
+                .l = l, \
+                .r = compile_expr(parser, BP_LOWEST), \
+            }; \
+            infix_expr; \
+        }); \
+        return res; \
+    }
+
+COMPOUND_ASSIGNMENT_OPERATOR(add, "+")
+COMPOUND_ASSIGNMENT_OPERATOR(sub, "-")
+COMPOUND_ASSIGNMENT_OPERATOR(mul, "*")
+COMPOUND_ASSIGNMENT_OPERATOR(div, "/")
+COMPOUND_ASSIGNMENT_OPERATOR(mod, "%")
+COMPOUND_ASSIGNMENT_OPERATOR(bit_or, "|")
+COMPOUND_ASSIGNMENT_OPERATOR(bit_and, "&")
+COMPOUND_ASSIGNMENT_OPERATOR(bit_xor, "^")
+
+#undef COMPOUND_ASSIGNMENT_OPERATOR
+
 AST_Expr* unary_operator(Parser* parser, bool can_assign);
 AST_Expr* closure_expr(Parser* parser, bool can_assign);
 
@@ -394,9 +428,18 @@ AST_SymbolBindRule AST_Rules[] = {
     [TOKEN_GE]              = INFIX_OPERATOR(">=", BP_CMP),
     [TOKEN_LT]              = INFIX_OPERATOR("<", BP_CMP),
     [TOKEN_LE]              = INFIX_OPERATOR("<=", BP_CMP),
-    [TOKEN_QUESTION]        = INFIX_SYMBOL(BP_ASSIGN, condition),
+    [TOKEN_QUESTION]        = INFIX_SYMBOL(BP_CONDITION, condition),
     [TOKEN_FN]              = PREFIX_SYMBOL(closure_expr),
     [TOKEN_ASSIGN]          = INFIX_SYMBOL(BP_ASSIGN, assign),
+    [TOKEN_BIT_XOR]         = INFIX_OPERATOR("^", BP_BIT_XOR),
+    [TOKEN_ADD_ASSIGN]      = INFIX_SYMBOL(BP_ASSIGN, add_assign),
+    [TOKEN_SUB_ASSIGN]      = INFIX_SYMBOL(BP_ASSIGN, sub_assign),
+    [TOKEN_MUL_ASSIGN]      = INFIX_SYMBOL(BP_ASSIGN, mul_assign),
+    [TOKEN_DIV_ASSIGN]      = INFIX_SYMBOL(BP_ASSIGN, div_assign),
+    [TOKEN_MOD_ASSIGN]      = INFIX_SYMBOL(BP_ASSIGN, mod_assign),
+    [TOKEN_BIT_AND_ASSIGN]  = INFIX_SYMBOL(BP_ASSIGN, bit_and_assign),
+    [TOKEN_BIT_OR_ASSIGN]   = INFIX_SYMBOL(BP_ASSIGN, bit_or_assign),
+    [TOKEN_BIT_XOR_ASSIGN]  = INFIX_SYMBOL(BP_ASSIGN, bit_xor_assign),
 };
 
 AST_Expr* unary_operator(Parser* parser, bool can_assign) {
@@ -627,6 +670,26 @@ AST_Expr* call_entry(Parser* parser, AST_Expr* l, bool can_assign) {
     consume_cur_token(parser, TOKEN_ID, "expect method name.");
     ScriptID name = SCRIPT_ID_FROM_TOKEN(parser->pre_token);
 
+    #define COMPOUND_ASSIGNMENT_OPERATOR(op_str) \
+        res->type = AST_SETTER_EXPR; \
+        AST_SetterExpr* setter = &res->expr.setter; \
+        setter->obj = l; \
+        setter->method_name = name; \
+        setter->val = malloc(sizeof(AST_Expr)); \
+        setter->val->type = AST_INFIX_EXPR; \
+        setter->val->expr.infix = (AST_InfixExpr) { \
+            .op = op_str, \
+            .l = ({ \
+                AST_Expr* expr = malloc(sizeof(AST_Expr)); \
+                expr->type = AST_GETTER_EXPR; \
+                expr->expr.getter.obj = malloc(sizeof(AST_Expr)); \
+                *expr->expr.getter.obj = *setter->obj; \
+                expr->expr.getter.method_name = setter->method_name; \
+                expr; \
+            }), \
+            .r = compile_expr(parser, BP_LOWEST), \
+        };
+
     if (match_token(parser, TOKEN_LP)) {
         res->type = AST_CALL_METHOD_EXPR;
         AST_CallMethodExpr* method = &res->expr.call_method;
@@ -644,12 +707,30 @@ AST_Expr* call_entry(Parser* parser, AST_Expr* l, bool can_assign) {
         setter->obj = l;
         setter->method_name = name;
         setter->val = compile_expr(parser, BP_LOWEST);
+    } else if (can_assign && match_token(parser, TOKEN_ADD_ASSIGN)) {
+        COMPOUND_ASSIGNMENT_OPERATOR("+");
+    } else if (can_assign && match_token(parser, TOKEN_SUB_ASSIGN)) {
+        COMPOUND_ASSIGNMENT_OPERATOR("-");
+    } else if (can_assign && match_token(parser, TOKEN_MUL_ASSIGN)) {
+        COMPOUND_ASSIGNMENT_OPERATOR("*");
+    } else if (can_assign && match_token(parser, TOKEN_DIV_ASSIGN)) {
+        COMPOUND_ASSIGNMENT_OPERATOR("/");
+    } else if (can_assign && match_token(parser, TOKEN_MOD_ASSIGN)) {
+        COMPOUND_ASSIGNMENT_OPERATOR("%");
+    } else if (can_assign && match_token(parser, TOKEN_BIT_AND_ASSIGN)) {
+        COMPOUND_ASSIGNMENT_OPERATOR("&");
+    } else if (can_assign && match_token(parser, TOKEN_BIT_OR_ASSIGN)) {
+        COMPOUND_ASSIGNMENT_OPERATOR("|");
+    } else if (can_assign && match_token(parser, TOKEN_BIT_XOR_ASSIGN)) {
+        COMPOUND_ASSIGNMENT_OPERATOR("^");
     } else {
         res->type = AST_GETTER_EXPR;
         AST_GetterExpr* getter = &res->expr.getter;
         getter->obj = l;
         getter->method_name = name;
     }
+
+    #undef COMPOUND_ASSIGNMENT_OPERATOR
 
     return res;
 }
