@@ -1142,6 +1142,16 @@ AST_ClassDef* compile_class_def(Parser* parser) {
     consume_cur_token(parser, TOKEN_LC, "expect '{' in the start of class-define-body.");
 
     while (!match_token(parser, TOKEN_RC)) { // class body
+        bool getter = false;
+        bool setter = false;
+        if (match_token(parser, TOKEN_GETTER)) {
+            getter = true;
+            setter = match_token(parser, TOKEN_SETTER);
+        } else if (match_token(parser, TOKEN_SETTER)) {
+            setter = true;
+            getter = match_token(parser, TOKEN_GETTER);
+        }
+        
         bool is_static = match_token(parser, TOKEN_STATIC);
 
         if (match_token(parser, TOKEN_LET)) {
@@ -1166,9 +1176,90 @@ AST_ClassDef* compile_class_def(Parser* parser) {
             }
 
             consume_cur_token(parser, TOKEN_SEMICOLON, "expect ';' in the end of field definition.");
-        } else if (match_token(parser, TOKEN_NATIVE)) {
+
+            if (getter) {
+                struct _ClassMethod* getter_method = malloc(sizeof(struct _ClassMethod));
+                getter_method->next = res->methods;
+                res->methods = getter_method;
+                
+                getter_method->is_static = is_static;
+
+                getter_method->type = AST_CLASS_GETTER;
+                getter_method->name = field->name;
+                getter_method->argc = 0;
+
+                AST_Block* body = malloc(sizeof(AST_Block));
+                
+                struct AST_BlockContext* context = malloc(sizeof(struct AST_BlockContext));
+                
+                AST_Stmt* return_stmt = malloc(sizeof(AST_Stmt));
+                return_stmt->type = AST_RETURN_STMT;
+                
+                AST_Expr* result = malloc(sizeof(AST_Expr));
+                result->type = AST_ID_EXPR;
+                result->expr.id = field->name;
+
+                return_stmt->stmt.ret_stmt_res = result;
+
+                context->stmt = return_stmt;
+                context->next = NULL;
+
+                body->head = context;
+                body->tail = context;
+                
+                getter_method->body =  body;
+            }
+
+            if (setter) {
+                struct _ClassMethod* setter_method = malloc(sizeof(struct _ClassMethod));
+                setter_method->next = res->methods;
+                res->methods = setter_method;
+                
+                setter_method->is_static = is_static;
+
+                setter_method->type = AST_CLASS_SETTER;
+                setter_method->name = field->name;
+                setter_method->argc = 1;
+
+                ScriptID getter_val = (ScriptID) {.start = "getter@val", .len = 10};
+                setter_method->arg_names[0] = getter_val;
+
+                AST_Block* body = malloc(sizeof(AST_Block));
+                
+                struct AST_BlockContext* context = malloc(sizeof(struct AST_BlockContext));
+                
+                AST_Stmt* return_stmt = malloc(sizeof(AST_Stmt));
+                return_stmt->type = AST_RETURN_STMT;
+                
+                AST_Expr* result = malloc(sizeof(AST_Expr));
+                result->type = AST_ASSIGN_EXPR;
+                result->expr.assign = (AST_AssignExpr) {
+                    .id = field->name,
+                    .expr = ({
+                        AST_Expr* val = malloc(sizeof(AST_Expr));
+                        val->type = AST_ID_EXPR;
+                        val->expr.id = getter_val;
+                        val;
+                    }),
+                };
+
+                return_stmt->stmt.ret_stmt_res = result;
+
+                context->stmt = return_stmt;
+                context->next = NULL;
+
+                body->head = context;
+                body->tail = context;
+                
+                setter_method->body = body;
+            }
+        } else if (!(getter || setter) && match_token(parser, TOKEN_NATIVE)) {
             native_annotation(parser);
         } else {
+            if (getter || setter) {
+                COMPILE_ERROR(parser, "getter and setter can only modify class fields.");
+            }
+
             struct _ClassMethod* method = malloc(sizeof(struct _ClassMethod));
             method->next = res->methods;
             res->methods = method;

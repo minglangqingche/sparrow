@@ -45,6 +45,8 @@ struct KeywordToken keywords[] = {
     SET(import, IMPORT),
     SET(in, IN),
     SET(native, NATIVE),
+    SET(getter, GETTER),
+    SET(setter, SETTER),
     {NULL, 0, TOKEN_UNKNOWN},
 };
 #undef SET

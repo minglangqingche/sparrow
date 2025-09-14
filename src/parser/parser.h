@@ -1,9 +1,7 @@
 #ifndef __PARSER_PARSER_H__
 #define __PARSER_PARSER_H__
 
-#include "common.h"
-#include "compiler.h"
-#include "meta_obj.h"
+#include "sparrow.h"
 
 typedef enum {
     TOKEN_UNKNOWN,
@@ -66,6 +64,9 @@ typedef enum {
 
     // OTHER MARK
     TOKEN_QUESTION,
+
+    // GETTER & SETTER
+    TOKEN_GETTER, TOKEN_SETTER,
 
     // UN-PRINTABLE MARK
     TOKEN_EOF,

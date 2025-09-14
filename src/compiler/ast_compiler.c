@@ -6,10 +6,11 @@
 #include "core.h"
 #include "opcode.h"
 #include "utils.h"
-#include "vm.h"
 #include <string.h>
 
-#include "ast_printer.h"
+#if defined(DUMP_AST_WHEN_COMPILE_PROG)
+    #include "ast_printer.h"
+#endif
 
 // 保存需要释放的local-var的name
 // 使用的位置：class 中静态变量名创建后需添加进入该列表追踪
