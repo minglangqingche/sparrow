@@ -63,7 +63,7 @@ u32 get_byte_of_decode_utf8_from_start(u8 val) {
 }
 
 u8 encode_utf8(u8* buf, Char_utf8 val) {
-    ASSERT(val > 0, "Can't encode nagative value.");
+    ASSERT(val >= 0, "Can't encode nagative value.");
 
     if (val <= 0x7F) {
         *buf = val & 0x7F;

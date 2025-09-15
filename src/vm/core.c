@@ -1123,7 +1123,10 @@ def_prim(i32_range) {
     if (!VALUE_IS_I32(args[1])) {
         SET_ERROR_FALSE(vm, "expect i32 value for i32.range(to: i32) -> Range;");
     }
-    ROBJ(objrange_new(vm, args[0].i32val, args[1].i32val, 1));
+    int from = args[0].i32val;
+    int to = args[1].i32val;
+    int step = from <= to ? 1 : -1;
+    ROBJ(objrange_new(vm, from, to, step));
 }
 
 def_prim(i32_to_string) {
@@ -1268,19 +1271,19 @@ inline static Value string_code_point_at(VM* vm, ObjString* str, u32 index) {
 }
 
 static u32 calculate_range(VM* vm, ObjRange* range, u32* count_ptr, int* step_ptr) {
-    u32 from = validate_index_value(vm, range->from, *count_ptr);
+    f64 from = validate_index_value(vm, range->from, *count_ptr);
     if (from == UINT32_MAX) {
         return UINT32_MAX;
     }
 
-    u32 to = validate_index_value(vm, range->to, *count_ptr);
+    f64 to = validate_index_value(vm, range->to, *count_ptr);
     if (to == UINT32_MAX) {
         return UINT32_MAX;
     }
 
     *step_ptr = range->step;
-    ASSERT((from < to && range->step > 0) || (from >= to && range->step < 0), "range step is opposite to its direction.");
-    *count_ptr = floor((double)(to - 1 - from) / abs(range->step) + 1); // 索引的元素数量
+    ASSERT((from <= to && range->step > 0) || (from >= to && range->step < 0), "range step is opposite to its direction.");
+    *count_ptr = floor((to - 1 - from) / abs(range->step) + 1); // 索引的元素数量
 
     return from;
 }
