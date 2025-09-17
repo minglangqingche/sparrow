@@ -1,6 +1,7 @@
 #include "ast.h"
 #include "class.h"
 #include "common.h"
+#include "compiler.h"
 #include "obj_string.h"
 #include "parser.h"
 #include "sparrow.h"
@@ -615,10 +616,72 @@ void id_method_signature(Parser* parser, struct _ClassMethod* method) {
 
     if (method->name.len == 3 && memcmp(method->name.start, "new", 3) == 0) {
         method->type = AST_CLASS_CONSTRUCTOR;
+
+        // auto property constructor
+        int auto_property_count = 0;
+        if (match_token(parser, TOKEN_LC)) {
+            if (match_token(parser, TOKEN_RC)) {
+                COMPILE_ERROR(parser, "auto property constructor must not none.");
+            }
+            process_para_list(parser, &method->argc, method->arg_names);
+            consume_cur_token(parser, TOKEN_RC, "expect '}' in the end of auto property constructor.");
+            auto_property_count = method->argc;
+        }
+
         consume_cur_token(parser, TOKEN_LP, "constructor must be a method.");
         if (!match_token(parser, TOKEN_RP)) {
             process_para_list(parser, &method->argc, method->arg_names);
             consume_cur_token(parser, TOKEN_RP, "expect ')' for parameter list");
+        }
+
+        if (auto_property_count != 0) {
+            if (method->body == NULL) {
+                method->body = malloc(sizeof(AST_Block));
+                method->body->head = NULL;
+            }
+
+            for (int i = 0; i < auto_property_count; i++) {
+                // 构造型参，避免重名问题
+                ScriptID* arg_name = &method->arg_names[i];
+                ScriptID origin = *arg_name;
+                
+                char buf[MAX_ID_LEN + 4] = {0};
+                memcpy(buf, "new@", 4);
+                memcpy(buf, origin.start, origin.len);
+                
+                ObjString* new_name = objstring_new(parser->vm, buf, origin.len + 4);
+                BufferAdd(Value, &parser->vm->ast_obj_root, parser->vm, OBJ_TO_VALUE(new_name));
+
+                arg_name->start = new_name->val.start;
+                arg_name->len = new_name->val.len;
+
+                // 构造赋值语句
+                AST_Stmt* stmt = malloc(sizeof(AST_Stmt));
+                stmt->type = AST_EXPRESSION_STMT;
+                
+                AST_Expr* assign = malloc(sizeof(AST_Expr));
+                assign->type = AST_ASSIGN_EXPR;
+                assign->expr.assign.id = origin;
+                
+                AST_Expr* id = malloc(sizeof(AST_Expr));
+                id->type = AST_ID_EXPR;
+                id->expr.id = *arg_name;
+
+                assign->expr.assign.expr = id;
+                stmt->stmt.expr_stmt = assign;
+
+                // 将赋值语句添加到body头部
+                struct AST_BlockContext* context = malloc(sizeof(struct AST_BlockContext));
+                context->next = NULL;
+                context->stmt = stmt;
+
+                if (method->body->head == NULL) {
+                    method->body->head = context;
+                } else {
+                    method->body->tail->next = context;
+                }
+                method->body->tail = context;
+            }
         }
     } else if (match_token(parser, TOKEN_LP)) {
         method->type = AST_CLASS_METHOD;
@@ -1359,6 +1422,7 @@ AST_ClassDef* compile_class_def(Parser* parser) {
 
             method->is_static = is_static;
             method->type = AST_CLASS_METHOD;
+            method->body = NULL;
 
             AST_SymbolBindRule* sign_rule = &AST_Rules[parser->cur_token.type];
             if (sign_rule->method_sign == NULL) {
@@ -1375,7 +1439,17 @@ AST_ClassDef* compile_class_def(Parser* parser) {
 
             // 解析函数体
             consume_cur_token(parser, TOKEN_LC, "expect '{' at the beginning of method body.");
-            method->body = compile_body(parser, method->type == AST_CLASS_CONSTRUCTOR);
+
+            AST_Block* method_body = compile_body(parser, method->type == AST_CLASS_CONSTRUCTOR);
+            
+            // 编译函数体前block中就已有内容，这些内容需要添加在函数体前。
+            if (method->body != NULL) {
+                method->body->tail->next = method_body->head;
+                method_body->head = method->body->head;
+                free(method->body);
+            }
+
+            method->body = method_body;
         }
         
         if (PEEK_TOKEN(parser) == TOKEN_EOF) {
